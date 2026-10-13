@@ -60,6 +60,9 @@ if(TARGET juce::juce_audio_utils)
   target_compile_options(MelodyCode PRIVATE -Wno-error=date-time)
   target_include_directories(MelodyCode SYSTEM PRIVATE scripts/mingw-case)  # case-only header name differences
   target_link_options(MelodyCode_Standalone PRIVATE -Wl,--subsystem,windows)               # GUI app, no console window
+  # comctl32 v6 (TaskDialogIndirect, used by JUCE message boxes) only resolves with this manifest
+  target_sources(MelodyCode_Standalone PRIVATE scripts/win/exe-manifest.rc)
+  target_sources(MelodyCode_VST3 PRIVATE scripts/win/dll-manifest.rc)
   target_compile_definitions(MelodyCode PRIVATE D2D1_SATURATION_PROP_SATURATION=0 CaretPosition_Unknown=0 CaretPosition_EndOfLine=1 CaretPosition_BeginningOfLine=2 NS_E_NO_MORE_SAMPLES=0xC00D0BCF)
   target_link_libraries(MelodyCode PRIVATE kernel32 user32 gdi32 winspool shell32 ole32 oleaut32 uuid comdlg32 advapi32 ws2_32 wininet version shlwapi winmm imm32 comctl32 dwmapi dwrite d2d1 dxgi d3d11 dcomp dxguid usp10 dbghelp)
  endif()
