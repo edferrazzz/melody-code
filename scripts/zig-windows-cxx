@@ -1,0 +1,2 @@
+#!/bin/sh
+exec "${ZIG:-zig}" c++ -target x86_64-windows-gnu "$@"

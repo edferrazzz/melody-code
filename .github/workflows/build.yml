@@ -1,0 +1,61 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows (Standalone + VST3)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -A x64
+      - name: Build
+        run: cmake --build build --config Release --parallel --target MelodyCode_Standalone MelodyCode_VST3 melodycode_tests melodycode_audio_tests
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Collect
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item "build/MelodyCode_artefacts/Release/Standalone/Melody Code.exe" "dist/Melody Code.exe"
+          Copy-Item -Recurse "build/MelodyCode_artefacts/Release/VST3/Melody Code.vst3" "dist/Melody Code.vst3"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: melody-code-windows-${{ github.sha }}
+          path: dist/
+          retention-days: 14
+
+  macos:
+    name: macOS (Standalone + VST3 + AU)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+      - name: Build
+        run: cmake --build build --config Release --parallel --target MelodyCode_Standalone MelodyCode_VST3 MelodyCode_AU melodycode_tests
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure -R core
+      - name: Collect
+        run: |
+          mkdir -p dist
+          cp -R "build/MelodyCode_artefacts/Release/Standalone/Melody Code.app" dist/
+          cp -R "build/MelodyCode_artefacts/Release/VST3/Melody Code.vst3" dist/
+          cp -R "build/MelodyCode_artefacts/Release/AU/Melody Code.component" dist/
+          cd dist && zip -qry ../melody-code-macos.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: melody-code-macos-${{ github.sha }}
+          path: melody-code-macos.zip
+          retention-days: 14

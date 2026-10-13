@@ -1,0 +1,25 @@
+# Build outputs
+/build*/
+/dist/
+/dist-macos/
+
+# Generated Windows installer binaries
+/Installer/*.exe
+/Installer/*.pdb
+/Installer/*.res
+
+# IDE and operating-system files
+.DS_Store
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+.idea/
+.vscode/
+
+# Local signing material (never commit certificates or credentials)
+*.p12
+*.cer
+*.provisionprofile
+*.keychain-db
+.env
+.env.*
+
