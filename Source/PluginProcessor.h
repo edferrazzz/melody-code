@@ -15,7 +15,7 @@ public:
     bool hasEditor() const override { return true; }
     const juce::String getName() const override { return JucePlugin_Name; }
     bool acceptsMidi() const override { return true; }
-    bool producesMidi() const override { return false; }
+    bool producesMidi() const override { return true; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 2.0; }
     int getNumPrograms() override { return 1; }
@@ -47,7 +47,11 @@ public:
     double playheadTicks() const { return playhead.load(); }
     void audition(int pitch) { pendingAudition.store(pitch); }
 
+    bool hostIsPlaying() const { return hostPlaying.load(); }
+
     int bpm { 120 };
+    std::atomic<bool> syncToHost { true };   // follow the DAW transport and tempo
+    std::atomic<bool> midiOut { true };      // also send the notes out as MIDI (melody ch 1, sub ch 2)
     int preset { 0 };
     float subLevel { 0.8f }, melodyLevel { 0.8f };
 
@@ -70,6 +74,10 @@ private:
     std::atomic<double> playhead { -1.0 };
     double position {};
     std::atomic<int> pendingAudition { -1 };
+    std::atomic<bool> hostPlaying { false };
+    bool wasRunning {};
+    struct Off { int pitch, channel; double samplesLeft; };
+    std::vector<Off> midiOffs;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MelodyCodeProcessor)
 };

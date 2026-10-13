@@ -102,25 +102,344 @@ void Segmented::mouseDown(const juce::MouseEvent& e) {
     if (i != selected) { selected = i; repaint(); if (onChange) onChange(i); }
 }
 
+void drawIcon(juce::Graphics& g, Icon icon, juce::Rectangle<float> r, juce::Colour c) {
+    g.setColour(c);
+    const juce::PathStrokeType stroke(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
+    const float x = r.getX(), y = r.getY(), w = r.getWidth(), h = r.getHeight(), cx = r.getCentreX(), cy = r.getCentreY();
+    auto arrowHead = [&](juce::Point<float> tip, float angle) {
+        juce::Path a;
+        a.addTriangle(tip, tip + juce::Point<float>(std::cos(angle + 2.5f), std::sin(angle + 2.5f)) * 5.5f,
+                      tip + juce::Point<float>(std::cos(angle - 2.5f), std::sin(angle - 2.5f)) * 5.5f);
+        g.fillPath(a);
+    };
+    switch (icon) {
+        case Icon::play: {
+            juce::Path p; p.addTriangle(x + w * 0.22f, y + h * 0.12f, x + w * 0.22f, y + h * 0.88f, x + w * 0.88f, cy);
+            g.fillPath(p); break;
+        }
+        case Icon::stop: g.fillRoundedRectangle(r.reduced(w * 0.2f), 2.0f); break;
+        case Icon::variation: {   // two arcs chasing each other
+            const float rad = w * 0.38f;
+            juce::Path a, b;
+            a.addCentredArc(cx, cy, rad, rad, 0, -2.6f, -0.3f, true);
+            b.addCentredArc(cx, cy, rad, rad, 0, 0.55f, 2.85f, true);
+            g.strokePath(a, stroke); g.strokePath(b, stroke);
+            arrowHead({ cx + rad * std::sin(-0.3f), cy - rad * std::cos(-0.3f) }, -0.3f);
+            arrowHead({ cx + rad * std::sin(2.85f), cy - rad * std::cos(2.85f) }, 2.85f);
+            break;
+        }
+        case Icon::random: {      // crossing arrows
+            juce::Path top, bottom;
+            top.startNewSubPath(x + 1, y + h * 0.28f);
+            top.cubicTo(cx - 2, y + h * 0.28f, cx + 1, y + h * 0.72f, x + w - 4, y + h * 0.72f);
+            bottom.startNewSubPath(x + 1, y + h * 0.72f);
+            bottom.cubicTo(cx - 2, y + h * 0.72f, cx + 1, y + h * 0.28f, x + w - 4, y + h * 0.28f);
+            g.strokePath(top, stroke); g.strokePath(bottom, stroke);
+            juce::Path a;
+            a.addTriangle(x + w - 5, y + 1, x + w, y + h * 0.28f, x + w - 5, y + h * 0.5f);
+            a.addTriangle(x + w - 5, y + h - 1, x + w, y + h * 0.72f, x + w - 5, y + h * 0.5f);
+            g.fillPath(a);
+            break;
+        }
+        case Icon::sparkle: {     // generate: a four-point star and a small one
+            auto star = [&](float sx, float sy, float s) {
+                juce::Path p;
+                p.startNewSubPath(sx, sy - s);
+                p.quadraticTo(sx, sy, sx + s, sy); p.quadraticTo(sx, sy, sx, sy + s);
+                p.quadraticTo(sx, sy, sx - s, sy); p.quadraticTo(sx, sy, sx, sy - s);
+                p.closeSubPath(); g.fillPath(p);
+            };
+            star(cx - w * 0.08f, cy + h * 0.06f, w * 0.42f);
+            star(x + w * 0.86f, y + h * 0.16f, w * 0.18f);
+            break;
+        }
+        case Icon::sub: {         // a low sine wave on a baseline
+            juce::Path p;
+            for (int i = 0; i <= 24; ++i) {
+                const float t = (float) i / 24.0f;
+                const juce::Point<float> pt { x + t * w, cy - std::sin(t * juce::MathConstants<float>::twoPi) * h * 0.32f };
+                if (i == 0) p.startNewSubPath(pt); else p.lineTo(pt);
+            }
+            g.strokePath(p, stroke);
+            g.drawLine(x, y + h - 1, x + w, y + h - 1, 1.2f);
+            break;
+        }
+        case Icon::midi: {
+            g.drawRoundedRectangle(r.reduced(1), 2, 1.6f);
+            const float keyY = y + h * 0.57f;
+            for (int i = 1; i < 5; ++i) g.drawVerticalLine((int) std::round(x + w * (float) i / 5.0f), keyY, y + h - 1);
+            for (float k : { 0.29f, 0.49f, 0.69f }) g.fillRect(x + w * k, keyY, 2.5f, h * 0.22f);
+            break;
+        }
+        case Icon::save:
+            g.drawLine(cx, y + 1, cx, y + h - 6, 1.8f);
+            g.drawLine(cx, y + h - 6, cx - 5, y + h - 11, 1.8f);
+            g.drawLine(cx, y + h - 6, cx + 5, y + h - 11, 1.8f);
+            g.drawLine(x + 2, y + h - 1, x + w - 2, y + h - 1, 1.8f);
+            break;
+        case Icon::history:
+            g.drawEllipse(r.reduced(2), 1.7f);
+            g.drawLine(cx, y + 5, cx, cy, 1.7f);
+            g.drawLine(cx, cy, x + w - 5, cy + 3, 1.7f);
+            break;
+        case Icon::gear: {
+            const float outer = std::min(w, h) * 0.46f;
+            juce::Path p;
+            for (int i = 0; i < 16; ++i) {
+                const float a = juce::MathConstants<float>::twoPi * (float) i / 16.0f;
+                const float rad = (i % 2 == 0) ? outer : outer * 0.77f;
+                const auto pt = r.getCentre() + juce::Point<float>(std::cos(a), std::sin(a)) * rad;
+                if (i == 0) p.startNewSubPath(pt); else p.lineTo(pt);
+            }
+            p.closeSubPath();
+            g.strokePath(p, juce::PathStrokeType(1.6f));
+            g.drawEllipse(juce::Rectangle<float>(w * 0.36f, w * 0.36f).withCentre(r.getCentre()), 1.6f);
+            break;
+        }
+        case Icon::none: break;
+    }
+}
+
 void ActionButton::paintButton(juce::Graphics& g, bool over, bool down) {
     auto r = getLocalBounds().toFloat().reduced(0.5f);
+    juce::Colour textColour;
+    juce::Font f = Theme::font(13.0f, true).withExtraKerningFactor(0.1f);
+    float iconSize = 16.0f;
     if (isAccent) {
         juce::Path p; p.addRoundedRectangle(r, 12);
         juce::DropShadow(Theme::acc.withAlpha(over ? 0.45f : 0.3f), 22, {}).drawForPath(g, p);
         g.setGradientFill(Theme::accent(r));
         g.fillPath(p);
         if (down) { g.setColour(juce::Colours::black.withAlpha(0.15f)); g.fillPath(p); }
-        g.setColour(Theme::ink);
-        g.setFont(Theme::font(24.0f, true).withExtraKerningFactor(0.3f));
+        textColour = Theme::ink;
+        f = Theme::font(24.0f, true).withExtraKerningFactor(0.3f);
+        iconSize = 22.0f;
     } else {
         g.setColour(down ? Theme::panel : Theme::panel2);
         g.fillRoundedRectangle(r, 12);
         g.setColour(lit || over ? Theme::acc : Theme::line);
         g.drawRoundedRectangle(r, 12, lit ? 1.6f : 1.0f);
-        g.setColour(lit ? Theme::acc : Theme::fg);
-        g.setFont(Theme::font(13.0f, true).withExtraKerningFactor(0.1f));
+        textColour = lit ? Theme::acc : Theme::fg;
     }
-    g.drawFittedText(getButtonText(), getLocalBounds().reduced(6), juce::Justification::centred, 2);
+    g.setFont(f);
+    const auto text = getButtonText();
+    if (icon == Icon::none) {
+        g.setColour(textColour);
+        g.drawFittedText(text, getLocalBounds().reduced(6), juce::Justification::centred, 2);
+        return;
+    }
+    const float gap = 8.0f;
+    const float maxText = r.getWidth() - iconSize - gap - 16.0f;
+    float tw = juce::GlyphArrangement::getStringWidth(f, text);
+    if (!isAccent)   // tighten the label before falling back to the stacked layout
+        for (float size : { 12.5f, 12.0f, 11.5f }) {
+            if (tw <= maxText) break;
+            f = Theme::font(size, true).withExtraKerningFactor(0.04f);
+            g.setFont(f);
+            tw = juce::GlyphArrangement::getStringWidth(f, text);
+        }
+    if (tw <= maxText) {   // icon and label on one line
+        const float total = iconSize + gap + tw;
+        const float x0 = r.getCentreX() - total / 2;
+        drawIcon(g, icon, { x0, r.getCentreY() - iconSize / 2, iconSize, iconSize }, isAccent ? Theme::ink : (lit ? Theme::acc : Theme::acc.interpolatedWith(Theme::fg, 0.35f)));
+        g.setColour(textColour);
+        g.drawText(text, juce::Rectangle<float>(x0 + iconSize + gap, r.getY(), tw + 4, r.getHeight()), juce::Justification::centredLeft);
+    } else {               // narrow button: icon above, label below
+        drawIcon(g, icon, { r.getCentreX() - 8, r.getY() + 9, 16, 16 }, lit ? Theme::acc : Theme::acc.interpolatedWith(Theme::fg, 0.35f));
+        g.setColour(textColour);
+        g.setFont(Theme::font(11.5f, true).withExtraKerningFactor(0.08f));
+        g.drawFittedText(text, getLocalBounds().reduced(4).withTrimmedTop(26), juce::Justification::centred, 1);
+    }
+}
+
+void IconButton::paintButton(juce::Graphics& g, bool over, bool down) {
+    auto r = getLocalBounds().toFloat().reduced(0.5f);
+    g.setColour(down ? Theme::panel : over ? Theme::panel2.brighter(0.08f) : Theme::panel2);
+    g.fillEllipse(r);
+    g.setColour(over ? Theme::acc : Theme::line);
+    g.drawEllipse(r, 1.0f);
+    drawIcon(g, icon, r.reduced(r.getWidth() * 0.26f), over ? Theme::acc : Theme::mute.brighter(0.3f));
+}
+
+// ---------------------------------------------------------------------------
+
+void ModalOverlay::present(juce::Component& owner, std::unique_ptr<juce::Component> panel, float scale) {
+    const bool was = isPresenting();
+    if (content) removeChildComponent(content.get());
+    content = std::move(panel);
+    uiScale = scale;
+    if (!was) {
+        setVisible(false);
+        // blur: shrink the snapshot, soften it, stretch it back when drawn
+        const auto snap = owner.createComponentSnapshot(owner.getLocalBounds(), true, 1.0f);
+        const int w = juce::jmax(1, snap.getWidth() / 6), h = juce::jmax(1, snap.getHeight() / 6);
+        juce::Image small(juce::Image::ARGB, w, h, true);
+        {
+            juce::Graphics g(small);
+            g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
+            g.drawImage(snap, 0, 0, w, h, 0, 0, snap.getWidth(), snap.getHeight());
+        }
+        juce::ImageConvolutionKernel kernel(7);
+        kernel.createGaussianBlur(2.2f);
+        kernel.applyToImage(small, small, small.getBounds());
+        backdrop = small;
+        reveal = 0;
+    }
+    setBounds(owner.getLocalBounds());
+    addAndMakeVisible(*content);
+    layoutPanel();
+    setVisible(true);
+    toFront(true);
+    if (!was) startTimerHz(60);
+}
+
+void ModalOverlay::dismiss() {
+    if (!content) return;
+    stopTimer();
+    removeChildComponent(content.get());
+    juce::MessageManager::callAsync([old = std::shared_ptr<juce::Component>(content.release())] {});
+    backdrop = {};
+    setVisible(false);
+}
+
+void ModalOverlay::layoutPanel() {
+    if (!content) return;
+    const float ease = 1.0f - std::pow(1.0f - reveal, 3.0f);
+    const float w = (float) content->getWidth() * uiScale, h = (float) content->getHeight() * uiScale;
+    const float x = ((float) getWidth() - w) * 0.5f, y = ((float) getHeight() - h) * 0.5f + (1.0f - ease) * 14.0f;
+    content->setTopLeftPosition(0, 0);
+    content->setTransform(juce::AffineTransform::scale(uiScale).translated(x, y));
+    content->setAlpha(ease);
+}
+
+void ModalOverlay::timerCallback() {
+    reveal = juce::jmin(1.0f, reveal + 1.0f / 9.0f);
+    layoutPanel();
+    repaint();
+    if (reveal >= 1.0f) stopTimer();
+}
+
+void ModalOverlay::paint(juce::Graphics& g) {
+    const float ease = 1.0f - std::pow(1.0f - reveal, 3.0f);
+    if (backdrop.isValid()) {
+        g.setOpacity(ease);
+        g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
+        g.drawImage(backdrop, getLocalBounds().toFloat());
+        g.setOpacity(1.0f);
+    }
+    g.setColour(juce::Colour(0xff040506).withAlpha(0.58f * ease));
+    g.fillAll();
+    if (content) {
+        juce::Path shape;
+        shape.addRoundedRectangle(content->getBounds().toFloat().transformedBy(content->getTransform()), 16.0f * uiScale);
+        juce::DropShadow(juce::Colours::black.withAlpha(0.6f * ease), juce::roundToInt(40.0f * uiScale), { 0, juce::roundToInt(14.0f * uiScale) }).drawForPath(g, shape);
+    }
+}
+
+void ModalOverlay::mouseUp(const juce::MouseEvent& e) {
+    if (content && !content->getBounds().toFloat().transformedBy(content->getTransform()).contains(e.position)) dismiss();
+}
+
+bool ModalOverlay::keyPressed(const juce::KeyPress& k) {
+    if (k == juce::KeyPress::escapeKey) { dismiss(); return true; }
+    return false;
+}
+
+// ---------------------------------------------------------------------------
+
+SettingsPanel::SettingsPanel(MelodyCodeProcessor& p, std::function<void()> c, std::function<void()> ch)
+    : proc(p), close(std::move(c)), changed(std::move(ch)) {
+    setSize(panelWidth, 412);
+    startTimerHz(4);   // keeps the DAW tempo readout fresh
+}
+
+void SettingsPanel::paint(juce::Graphics& g) {
+    using namespace Theme;
+    auto all = getLocalBounds().toFloat();
+    g.setGradientFill(juce::ColourGradient(panel2, 0, 0, panel, 0, all.getHeight(), false));
+    g.fillRoundedRectangle(all, 16);
+    g.setGradientFill(juce::ColourGradient(acc.withAlpha(0.10f), all.getCentreX(), 0, acc.withAlpha(0.0f), all.getCentreX(), 90, false));
+    g.fillRoundedRectangle(all, 16);
+    g.setColour(line);
+    g.drawRoundedRectangle(all.reduced(0.5f), 16, 1);
+
+    auto section = [&](const juce::String& t, float y) {
+        g.setColour(mute); g.setFont(font(11.5f, true).withExtraKerningFactor(0.15f));
+        g.drawText(t, juce::Rectangle<float>(18, y, 260, 16), juce::Justification::centredLeft);
+    };
+    auto divider = [&](float y) { g.setColour(line); g.fillRect(18.0f, y, panelWidth - 36.0f, 1.0f); };
+    auto toggle = [&](juce::Rectangle<float> row, const juce::String& title, bool on, const juce::String& note) {
+        g.setColour(isOver(row) ? panel2.brighter(0.06f) : panel2);
+        g.fillRoundedRectangle(row, 10);
+        g.setColour(fg); g.setFont(font(14.5f, true));
+        g.drawText(title, row.withTrimmedLeft(12), juce::Justification::centredLeft);
+        auto track = juce::Rectangle<float>(40, 22).withCentre({ row.getRight() - 32, row.getCentreY() });
+        if (on) g.setGradientFill(accent(track)); else g.setColour(juce::Colour(0xff2a2f3d));
+        g.fillRoundedRectangle(track, 11);
+        g.setColour(fg);
+        g.fillEllipse(juce::Rectangle<float>(16, 16).withCentre({ on ? track.getRight() - 11 : track.getX() + 11, track.getCentreY() }));
+        if (note.isNotEmpty()) { g.setColour(mute); g.setFont(font(12.5f)); g.drawText(note, row.withTrimmedRight(62), juce::Justification::centredRight); }
+    };
+
+    auto mark = juce::Rectangle<float>(18, 18, 34, 34);
+    g.setGradientFill(accent(mark)); g.fillRoundedRectangle(mark, 9);
+    drawIcon(g, Icon::gear, mark.reduced(8), ink);
+    g.setColour(mute); g.setFont(font(11.5f, true).withExtraKerningFactor(0.15f));
+    g.drawText(juce::String::fromUTF8("CONFIGURAÇÕES"), 62, 17, 200, 16, juce::Justification::centredLeft);
+    g.setColour(fg); g.setFont(font(19.0f, true));
+    g.drawText("Melody Code", 62, 32, 140, 24, juce::Justification::centredLeft);
+    auto ver = juce::Rectangle<float>(190, 34, 62, 22);
+    g.setColour(acc.withAlpha(0.12f)); g.fillRoundedRectangle(ver, 11);
+    g.setColour(acc.withAlpha(0.4f)); g.drawRoundedRectangle(ver.reduced(0.5f), 11, 1);
+    g.setColour(acc); g.setFont(font(12.5f, true));
+    g.drawText("v" JucePlugin_VersionString, ver, juce::Justification::centred);
+    {
+        const auto c = closeArea();
+        g.setColour(isOver(c) ? panel2.brighter(0.1f) : panel2); g.fillEllipse(c);
+        g.setColour(isOver(c) ? fg : mute);
+        const auto x = c.reduced(c.getWidth() * 0.34f);
+        g.drawLine({ x.getTopLeft(), x.getBottomRight() }, 1.6f);
+        g.drawLine({ x.getBottomLeft(), x.getTopRight() }, 1.6f);
+    }
+    divider(70);
+
+    section("TEMPO", 80);
+    const bool synced = proc.syncToHost.load();
+    toggle(syncRow(), "Sincronizar com a DAW", synced, synced && proc.hostIsPlaying() ? juce::String::fromUTF8("tocando junto") : juce::String());
+    for (size_t i = 0; i < bpmValues.size(); ++i) {
+        const auto r = chip(i);
+        const bool active = proc.bpm == bpmValues[i];
+        if (active) { g.setGradientFill(accent(r)); g.fillRoundedRectangle(r, 8); }
+        else {
+            g.setColour(isOver(r) ? panel2.brighter(0.06f) : panel2); g.fillRoundedRectangle(r, 8);
+            g.setColour(isOver(r) ? acc.withAlpha(0.7f) : line); g.drawRoundedRectangle(r.reduced(0.5f), 8, 1);
+        }
+        g.setColour(active ? ink : fg); g.setFont(font(14.5f, true));
+        g.drawText(juce::String(bpmValues[i]), r, juce::Justification::centred);
+    }
+    g.setColour(quiet.brighter(0.4f)); g.setFont(font(12.0f));
+    g.drawFittedText(juce::String::fromUTF8("Com a DAW tocando, o loop segue o tempo e o compasso dela. Parada, usa o BPM acima."),
+                     juce::Rectangle<int>(18, 224, panelWidth - 36, 32), juce::Justification::centredLeft, 2, 1.0f);
+    divider(258);
+
+    section("MIDI", 266);
+    toggle(midiRow(), "Enviar MIDI para a DAW", proc.midiOut.load(), {});
+    g.setColour(quiet.brighter(0.4f)); g.setFont(font(12.0f));
+    g.drawFittedText(juce::String::fromUTF8("Melodia no canal 1 e sub no canal 2, pra gravar ou tocar com outro instrumento."),
+                     juce::Rectangle<int>(18, 334, panelWidth - 36, 32), juce::Justification::centredLeft, 2, 1.0f);
+    divider(372);
+    g.setColour(mute); g.setFont(font(12.0f));
+    g.drawText("Audio Makers", juce::Rectangle<float>(18, 380, 200, 20), juce::Justification::centredLeft);
+}
+
+void SettingsPanel::mouseUp(const juce::MouseEvent& e) {
+    const auto p = e.position;
+    if (closeArea().contains(p)) { if (close) close(); return; }
+    if (syncRow().contains(p)) proc.syncToHost = !proc.syncToHost.load();
+    else if (midiRow().contains(p)) proc.midiOut = !proc.midiOut.load();
+    else for (size_t i = 0; i < bpmValues.size(); ++i) if (chip(i).contains(p)) proc.bpm = bpmValues[i];
+    if (changed) changed();
+    repaint();
 }
 
 void DragMidiButton::mouseDrag(const juce::MouseEvent& e) {
@@ -210,7 +529,7 @@ void PianoRoll::rebuildChordBoxes() {
         lock->onClick = [this, bar] { proc.toggleLock(bar); };
         addAndMakeVisible(lock);
     }
-    const auto gs = mc::harmonySettings(pat.settings);
+    const auto gs = mc::harmonySettings(pat.style, pat.vibe, pat.settings);
     choices.assign((size_t) bars, {});
     for (int b = 0; b < bars; ++b) {
         auto* box = chordBoxes[b];
@@ -431,8 +750,8 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
 
     for (int i = 0; i < 12; ++i) keyBox.addItem(noteNames[i], i + 1);
     for (int i = 0; i < (int) ccp::ScaleType::count; ++i) scaleBox.addItem(utf8(ccp::scaleName((ccp::ScaleType) i)), i + 1);
-    for (int i = 0; i < (int) mc::Style::count; ++i) styleBox.addItem(mc::styleName((mc::Style) i), i + 1);
-    for (int i = 0; i < (int) mc::Vibe::count; ++i) vibeBox.addItem(mc::vibeName((mc::Vibe) i), i + 1);
+    for (int i = 0; i < (int) mc::Style::count; ++i) styleBox.addItem(utf8(mc::styleName((mc::Style) i)), i + 1);
+    for (int i = 0; i < (int) mc::Vibe::count; ++i) vibeBox.addItem(utf8(mc::vibeName((mc::Vibe) i)), i + 1);
     for (int i = 0; i < Synth::presetCount; ++i) soundBox.addItem(Synth::presetName(i), i + 1);
     auto onSetting = [this] {
         auto& s = proc.settings();
@@ -483,6 +802,10 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
         content.addAndMakeVisible(b);
     }
 
+    gear.onClick = [this] { openSettings(); };
+    content.addAndMakeVisible(gear);
+    addChildComponent(overlay);
+
     proc.addChangeListener(this);
     syncControls();
     constrainer.setFixedAspectRatio((double) Theme::width / Theme::height);
@@ -511,7 +834,9 @@ void MelodyCodeEditor::syncControls() {
     bars.setSelected(s.bars == 2 ? 0 : s.bars == 4 ? 1 : 2);
     bpm.setValue(proc.bpm, juce::dontSendNotification);
     play.setButtonText(proc.isPlaying() ? "PARAR" : "OUVIR");
+    play.icon = proc.isPlaying() ? Icon::stop : Icon::play;
     play.lit = proc.isPlaying();
+    play.repaint();
     roll.refresh();
     content.repaint();
 }
@@ -554,12 +879,19 @@ void MelodyCodeEditor::saveMidi() {
         });
 }
 
+void MelodyCodeEditor::openSettings() {
+    auto panel = std::make_unique<SettingsPanel>(proc, [this] { overlay.dismiss(); }, [this] { bpm.setValue(proc.bpm, juce::dontSendNotification); content.repaint(); });
+    overlay.present(*this, std::move(panel), (float) getWidth() / (float) Theme::width);
+    overlay.grabKeyboardFocus();
+}
+
 void MelodyCodeEditor::paint(juce::Graphics& g) { g.fillAll(Theme::bg); }
 
 void MelodyCodeEditor::resized() {
     content.setBounds(0, 0, Theme::width, Theme::height);
     content.setTransform(juce::AffineTransform::scale((float) getWidth() / (float) Theme::width));
     layout();
+    overlay.dismiss();
 }
 
 namespace L {
@@ -574,6 +906,7 @@ void MelodyCodeEditor::layout() {
         for (auto* b : { &keyBox, &scaleBox, &styleBox, &vibeBox, &soundBox }) { b->setBounds(x, L::selY, w, 44); x += w + gap; }
     }
     roll.setBounds(L::pad, L::rollY, W, L::rollH);
+    gear.setBounds(Theme::width - L::pad - 40, 22, 40, 40);
     {
         const int gap = 12, w = (W - 3 * gap) / 4;
         int x = L::pad;
@@ -625,15 +958,16 @@ void MelodyCodeEditor::paintContent(juce::Graphics& g) {
 
     const auto& s = proc.settings();
     const auto dot = utf8("  \xc2\xb7  ");
-    const juce::String info = juce::String(noteNames[s.key]) + " " + utf8(ccp::scaleName(s.scale)) + dot + juce::String(s.bars) + " BARS" + dot + juce::String(proc.bpm) + " BPM";
+    const auto shownPat = proc.pattern();
+    const auto arrow = utf8(" \xe2\x86\x92 ");
+    const juce::String styleInfo = (s.style == mc::Style::automatic ? utf8("PADR\xc3\x83O") + arrow : juce::String()) + utf8(mc::styleName(shownPat.style))
+                                 + " / " + (s.vibe == mc::Vibe::automatic ? utf8("PADR\xc3\x83O") + arrow : juce::String()) + utf8(mc::vibeName(shownPat.vibe));
+    const juce::String info = styleInfo + dot + juce::String(noteNames[s.key]) + " " + utf8(ccp::scaleName(s.scale)) + dot + juce::String(s.bars) + " BARS" + dot + juce::String(proc.bpm) + " BPM";
     g.setFont(font(12.0f, true).withExtraKerningFactor(0.1f));
     const float iw = juce::GlyphArrangement::getStringWidth(g.getCurrentFont(), info) + 34;
-    auto pill = juce::Rectangle<float>((float) (width - L::pad) - 66 - iw, 26, iw, 32);
+    auto pill = juce::Rectangle<float>((float) (width - L::pad) - 52 - iw, 26, iw, 32);
     g.setColour(acc.withAlpha(0.5f)); g.drawRoundedRectangle(pill, 16, 1);
     g.setColour(acc); g.drawText(info, pill, juce::Justification::centred);
-    auto ver = juce::Rectangle<float>((float) (width - L::pad) - 56, 26, 56, 32);
-    g.setColour(line); g.drawRoundedRectangle(ver, 16, 1);
-    g.setColour(mute); g.drawText("v1.0", ver, juce::Justification::centred);
     g.setColour(line);
     g.fillRect((float) L::pad, 80.0f, (float) (width - 2 * L::pad), 1.0f);
 
