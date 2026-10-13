@@ -6,6 +6,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: write
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
@@ -29,6 +32,26 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item "build/MelodyCode_artefacts/Release/Standalone/Melody Code.exe" "dist/Melody Code.exe"
           Copy-Item -Recurse "build/MelodyCode_artefacts/Release/VST3/Melody Code.vst3" "dist/Melody Code.vst3"
+          Get-ChildItem -Recurse dist -Include *.pdb,*.lib,*.exp | Remove-Item
+      - name: Installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { choco install innosetup -y --no-progress; }
+          & $iscc installer/MelodyCode.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Publish installer to the repo
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force Release/Windows | Out-Null
+          Copy-Item "dist/Melody Code * Instalador.exe" Release/Windows/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Release/Windows
+          git diff --cached --quiet
+          if ($LASTEXITCODE) { git commit -m "Windows installer from CI (MSVC) [skip ci]"; git pull --rebase origin main; git push origin HEAD:main }
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: melody-code-windows-${{ github.sha }}
