@@ -1,6 +1,6 @@
 ; Windows installer: Standalone in Program Files, VST3 in Common Files\VST3.
 #ifndef AppVersion
-  #define AppVersion "1.1.0"
+  #define AppVersion "1.2.0"
 #endif
 #ifndef DistDir
   #define DistDir "..\dist"
