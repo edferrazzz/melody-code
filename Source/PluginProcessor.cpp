@@ -6,6 +6,24 @@ MelodyCodeProcessor::MelodyCodeProcessor()
     publish(engine.generate(current));
 }
 
+namespace {
+// The Vibe shapes the sound, not the notes.
+Synth::Character characterFor(mc::Vibe v) {
+    Synth::Character c;
+    switch (v) {
+        case mc::Vibe::dark:     c.bright = 0.55f; c.reverbSize = 0.75f; c.reverbWet = 0.30f; c.drive = 0.35f; c.delayWet = 0.22f; break;
+        case mc::Vibe::happy:    c.bright = 1.25f; c.reverbSize = 0.5f;  c.reverbWet = 0.2f;  c.octaveUp = 0.35f; c.delayWet = 0.16f; break;
+        case mc::Vibe::sad:      c.bright = 0.7f;  c.reverbSize = 0.8f;  c.reverbWet = 0.34f; c.wobble = 0.35f; c.delayWet = 0.24f; break;
+        case mc::Vibe::hypnotic: c.bright = 0.9f;  c.reverbSize = 0.65f; c.reverbWet = 0.25f; c.delayWet = 0.34f; c.delayFeedback = 0.5f; c.detune = 1.3f; break;
+        case mc::Vibe::epic:     c.bright = 1.15f; c.reverbSize = 0.9f;  c.reverbWet = 0.38f; c.octaveUp = 0.5f; c.detune = 1.7f; c.drive = 0.15f; break;
+        case mc::Vibe::chill:    c.bright = 0.8f;  c.reverbSize = 0.6f;  c.reverbWet = 0.26f; c.wobble = 0.25f; c.drive = 0.1f; break;
+        case mc::Vibe::romantic: c.bright = 0.95f; c.reverbSize = 0.7f;  c.reverbWet = 0.3f;  c.detune = 1.4f; c.octaveUp = 0.15f; break;
+        default: break;
+    }
+    return c;
+}
+}
+
 bool MelodyCodeProcessor::isBusesLayoutSupported(const BusesLayout& l) const {
     return l.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
 }
@@ -27,6 +45,7 @@ std::array<bool, mc::maxBars> MelodyCodeProcessor::lockArray() const {
 
 void MelodyCodeProcessor::publish(mc::Pattern p, bool addHistory) {
     current = p.settings;
+    soundVibe = (int) p.vibe;
     shown = p;
     {
         const juce::SpinLock::ScopedLockType sl(patternLock);
@@ -48,6 +67,10 @@ void MelodyCodeProcessor::applySettings() {
     generateAll();
 }
 void MelodyCodeProcessor::newMelody() { publish(engine.newMelody(shown, current, lockArray())); }
+void MelodyCodeProcessor::setVibe(mc::Vibe v) {
+    current.vibe = v;
+    publish(engine.withVibe(shown, v), false);
+}
 void MelodyCodeProcessor::newBass() { publish(engine.newBass(shown)); }
 void MelodyCodeProcessor::variation() { publish(engine.variation(shown, lockArray())); }
 void MelodyCodeProcessor::setChord(int bar, const ccp::Chord& c) { publish(engine.setChord(shown, bar, c)); }
@@ -109,6 +132,7 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     wasRunning = running;
 
     synth.setPreset(preset);
+    synth.setCharacter(characterFor((mc::Vibe) soundVibe.load()));
     synth.setLevels(subLevel, melodyLevel);
     synth.setDelayTime(60.0 / tempo * 0.75);
 
@@ -158,7 +182,7 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         const int at = juce::jlimit(0, n - 1, e.offset);
         if (at > done) { synth.render(l + done, r + done, at - done); done = at; }
         const int lenSamples = (int) (e.note.length * samplesPerTick);
-        synth.noteOn(e.note.pitch, e.note.velocity, lenSamples, e.note.glide, e.sub);
+        synth.noteOn(e.note.pitch, e.note.velocity, lenSamples, false, e.sub);
         if (sendMidi && running) {
             const int ch = e.sub ? 2 : 1;
             for (auto it = midiOffs.begin(); it != midiOffs.end(); ++it)   // retrigger: close the old note first
@@ -186,7 +210,7 @@ void MelodyCodeProcessor::getStateInformation(juce::MemoryBlock& dest) {
     for (int i = 0; i < shown.bars(); ++i) {
         const auto& c = shown.progression.chords[(size_t) i];
         auto* x = root.createNewChildElement("chord");
-        x->setAttribute("degree", c.degree); x->setAttribute("kind", (int) c.kind); x->setAttribute("root", c.root); x->setAttribute("quality", c.quality);
+        x->setAttribute("shift", shown.chordShift[(size_t) i]); x->setAttribute("degree", c.degree); x->setAttribute("kind", (int) c.kind); x->setAttribute("root", c.root); x->setAttribute("quality", c.quality);
     }
     for (int t = 0; t < 2; ++t)
         for (const auto& n : t ? shown.bass : shown.melody) {
@@ -224,6 +248,7 @@ void MelodyCodeProcessor::setStateInformation(const void* data, int size) {
         c.root = x->getIntAttribute("root"); c.quality = x->getIntAttribute("quality", -1);
         p.progression.chords[(size_t) count] = ccp::HarmonyEngine::rebuild(p.progression.settings, c, prev, count);
         prev = &p.progression.chords[(size_t) count];
+        p.chordShift[(size_t) count] = juce::jlimit(-8, 8, x->getIntAttribute("shift"));
         ++count;
     }
     if (count != s.bars) return;

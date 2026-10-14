@@ -35,7 +35,8 @@ public:
     void variation();
     void setChord(int bar, const ccp::Chord&);
     void setMelody(std::vector<mc::Note>);
-    void applySettings();       // key/scale/style/vibe/bars changed: regenerate unlocked bars
+    void applySettings();
+    void setVibe(mc::Vibe);     // only changes the sound, the notes stay       // key/scale/style/vibe/bars changed: regenerate unlocked bars
     void toggleLock(int bar) { locks[(size_t) bar] = !locks[(size_t) bar]; sendChangeMessage(); }
     bool isLocked(int bar) const { return locks[(size_t) bar]; }
     int historySize() const { return (int) history.size(); }
@@ -75,6 +76,7 @@ private:
     double position {};
     std::atomic<int> pendingAudition { -1 };
     std::atomic<bool> hostPlaying { false };
+    std::atomic<int> soundVibe { (int) mc::Vibe::chill };
     bool wasRunning {};
     struct Off { int pitch, channel; double samplesLeft; };
     std::vector<Off> midiOffs;

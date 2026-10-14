@@ -1,6 +1,8 @@
 #pragma once
 #include "Music.h"
 #include <cstdint>
+#include <algorithm>
+#include <array>
 #include <deque>
 #include <random>
 #include <vector>
@@ -15,8 +17,8 @@ constexpr int barTicks = stepsPerBar * step;
 constexpr int maxBars = 8;
 
 // "automatic" lets the engine pick the style / vibe it thinks fits; the choice is stored in the Pattern.
-enum class Style { automatic, funkBR, pop, trap, phonk, drill, piseiro, sertanejo, pagode, bossaNova, jazz, rnb,
-                   reggaeton, afrobeat, house, loFi, count };
+enum class Style { automatic, funkBR, pop, trap, phonk, drill, bossaNova, jazz, rnb,
+                   reggaeton, house, loFi, count };
 enum class Vibe { automatic, dark, happy, sad, hypnotic, epic, chill, romantic, count };
 enum class Role { lead, hook, counter, count };
 enum class Density { low, mid, high, count };
@@ -45,9 +47,21 @@ struct Pattern {
     Settings settings;
     Style style { Style::pop };        // resolved style (never automatic)
     Vibe vibe { Vibe::chill };         // resolved vibe (never automatic)
-    ccp::Progression progression;      // one chord per bar
+    ccp::Progression progression;      // one chord per bar (a held chord repeats in the next bar)
+    // Harmonic rhythm: where each bar's chord really starts, in 16ths from its bar line.
+    // Negative = arrives early (anticipation / 6+2 feel), positive = the previous chord rings longer.
+    std::array<int, maxBars> chordShift {};
     std::vector<Note> bass, melody;
     int bars() const { return progression.chordCount; }
+    int chordIndexAt(int tick) const {
+        const int n = bars();
+        if (n <= 0) return 0;
+        int b = std::clamp(tick / barTicks, 0, n - 1);
+        if (b + 1 < n && tick >= (b + 1) * barTicks + chordShift[(size_t) (b + 1)] * step) return b + 1;
+        if (b > 0 && tick < b * barTicks + chordShift[(size_t) b] * step) return b - 1;
+        return b;
+    }
+    const ccp::Chord& chordAt(int tick) const { return progression.chords[(size_t) chordIndexAt(tick)]; }
     int lengthTicks() const { return bars() * barTicks; }
 };
 
@@ -67,6 +81,8 @@ public:
     Pattern variation(const Pattern&, const std::array<bool, maxBars>& locked = {});
     // Swap one bar's chord, then rewrite that bar's sub and melody.
     Pattern setChord(const Pattern&, int bar, const ccp::Chord&);
+    // Same notes, another vibe (the vibe only changes the sound).
+    Pattern withVibe(const Pattern&, Vibe);
 
     static std::vector<int> chordPitchClasses(const ccp::Chord&);
     static int subPitch(const ccp::Chord&);
@@ -76,6 +92,7 @@ private:
     Style resolveStyle(Style);
     Vibe resolveVibe(Vibe, Style);
     std::vector<Note> bassFor(const Pattern&);
+    void shapeHarmony(Pattern&, const std::array<bool, maxBars>& locked, const Pattern* current);
     std::vector<Note> melodyFor(const Pattern&, const std::vector<Note>& keep, const std::array<bool, maxBars>& locked);
     std::vector<Note> melodyAttempt(const Pattern&, const std::vector<Note>& keep, const std::array<bool, maxBars>& locked);
     uint64_t signature(const std::vector<Note>&) const;

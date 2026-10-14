@@ -20,6 +20,10 @@ int main() {
                 for (auto& n : p.melody) if (n.start == lastStart) lastTop = std::max(lastTop, n.pitch);
                 ok &= (lastTop % 12) == s.key;
                 ok &= p.style != Style::automatic && p.vibe != Vibe::automatic;
+                for (int b = 0; b < bars; ++b) {   // simple chords only
+                    const auto k = p.progression.chords[(size_t) b].kind;
+                    ok &= k == ccp::ChordKind::triad || k == ccp::ChordKind::seventh;
+                }
                 if (st != 0) ok &= p.style == (Style) st;
                 if (!ok) { ++failures; std::printf("fail style %d vibe %d bars %d\n", st, v, bars); }
             }
@@ -49,9 +53,14 @@ int main() {
         }
         std::printf("%-10s overlap %4.1f%%\n", styleName((Style) st), 100.0 * overlaps / std::max(1, total));
     }
+    // the vibe never changes the notes
+    { auto v = e.withVibe(p, Vibe::dark); if (v.melody.size() != p.melody.size() || v.bass.size() != p.bass.size()) { ++failures; std::puts("vibe changed notes"); } }
+    // harmonic rhythm varies
+    { int shifted = 0; for (int i = 0; i < 40; ++i) { auto r = e.generate(s); for (int b = 1; b < r.bars(); ++b) if (r.chordShift[(size_t) b] || r.progression.chords[(size_t) b].name == r.progression.chords[(size_t) b - 1].name) { ++shifted; break; } }
+      std::printf("patterns with varied chord lengths: %d of 40\n", shifted); if (shifted < 15) ++failures; }
     // print one example
     for (auto& n : p.melody) std::printf("%d:%d ", n.start / 240, n.pitch);
-    std::printf("\nchords:"); for (int i = 0; i < p.bars(); ++i) std::printf(" %s", p.progression.chords[(size_t) i].name.c_str());
+    std::printf("\nchords:"); for (int i = 0; i < p.bars(); ++i) std::printf(" %s@%d", p.progression.chords[(size_t) i].name.c_str(), p.chordShift[(size_t) i]);
     std::printf("\nsub:"); for (auto& n : p.bass) std::printf(" %d:%d", n.start / 240, n.pitch);
     std::printf("\n%s (%d failures)\n", failures ? "FAILED" : "OK", failures);
     return failures ? 1 : 0;

@@ -585,13 +585,20 @@ void PianoRoll::paint(juce::Graphics& g) {
         }
     }
     // chord tones per bar
-    for (int b = 0; b < bars; ++b) {
-        auto pcs = mc::Engine::chordPitchClasses(pat.progression.chords[(size_t) b]);
+    for (int st = 0; st < bars * 16; ++st) {   // chord tones follow where each chord really sounds
+        auto pcs = mc::Engine::chordPitchClasses(pat.chordAt(st * mc::step));
         for (int m = hi; m >= lo; --m)
             if (std::find(pcs.begin(), pcs.end(), m % 12) != pcs.end()) {
                 g.setColour(Theme::acc.withAlpha(0.06f));
-                g.fillRect(a.getX() + (float) (b * 16) * sw, a.getY() + (float) (hi - m) * rh, 16 * sw, rh);
+                g.fillRect(a.getX() + (float) st * sw, a.getY() + (float) (hi - m) * rh, sw, rh);
             }
+    }
+    for (int b = 0; b < bars; ++b) {
+        if (b > 0 && pat.chordShift[(size_t) b] != 0) {   // chord change off the bar line
+            const float x = a.getX() + (float) (b * 16 + pat.chordShift[(size_t) b]) * sw;
+            g.setColour(Theme::acc2.withAlpha(0.8f));
+            g.fillRect(x - 1.0f, a.getY(), 2.0f, a.getHeight());
+        }
         if (proc.isLocked(b)) {
             g.setColour(Theme::acc.withAlpha(0.07f));
             g.fillRect(a.getX() + (float) (b * 16) * sw, 0.0f, 16 * sw, all.getHeight());
@@ -758,10 +765,11 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
         s.key = keyBox.getSelectedId() - 1;
         s.scale = (ccp::ScaleType) (scaleBox.getSelectedId() - 1);
         s.style = (mc::Style) (styleBox.getSelectedId() - 1);
-        s.vibe = (mc::Vibe) (vibeBox.getSelectedId() - 1);
         proc.applySettings();
     };
-    for (auto* b : { &keyBox, &scaleBox, &styleBox, &vibeBox }) { b->onChange = onSetting; content.addAndMakeVisible(b); }
+    for (auto* b : { &keyBox, &scaleBox, &styleBox }) { b->onChange = onSetting; content.addAndMakeVisible(b); }
+    vibeBox.onChange = [this] { proc.setVibe((mc::Vibe) (vibeBox.getSelectedId() - 1)); };   // sound only, notes stay
+    content.addAndMakeVisible(vibeBox);
     soundBox.onChange = [this] { proc.preset = soundBox.getSelectedId() - 1; };
     content.addAndMakeVisible(soundBox);
     content.addAndMakeVisible(roll);

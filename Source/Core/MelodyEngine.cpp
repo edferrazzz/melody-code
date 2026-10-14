@@ -39,6 +39,29 @@ struct Profile {
     std::vector<std::vector<Hit>> bass;
 };
 
+/* Harmonic rhythm per style, 4 bars at a time: each value is where that bar's chord starts, in 16ths from the
+   bar line (H = hold the previous chord). From common practice per genre: trap/phonk/drill hold chords for
+   two bars (8+8) or push the change late (6+2), R&B / pop / bossa anticipate the change by a 16th, jazz
+   splits bars (ii-V in 2+2), lo-fi holds. Every template except "even" makes at least one chord a different
+   length from the others. */
+constexpr int H = 99;
+const std::vector<std::array<int, 4>>& harmonicRhythm(Style s) {
+    static const std::map<Style, std::vector<std::array<int, 4>>> t {
+        { Style::funkBR,    { { 0, H, 0, 0 }, { 0, 0, H, H }, { 0, H, 0, H }, { 0, 0, 0, 0 } } },
+        { Style::pop,       { { 0, 0, 0, 0 }, { 0, -1, 0, -1 }, { 0, 0, 0, 8 }, { 0, 0, -1, 0 } } },
+        { Style::trap,      { { 0, H, 0, H }, { 0, 8, 0, 8 }, { 0, H, 0, 0 }, { 0, 0, 0, 0 } } },
+        { Style::phonk,     { { 0, H, 0, H }, { 0, 0, 0, 0 }, { 0, 0, 0, 8 } } },
+        { Style::drill,     { { 0, H, 0, H }, { 0, 8, 0, 8 }, { 0, 0, 0, 0 } } },
+        { Style::bossaNova, { { 0, H, 0, 0 }, { 0, -1, 0, -1 }, { 0, 0, -2, 0 } } },
+        { Style::jazz,      { { 0, 8, 0, 8 }, { 0, 0, 0, 8 }, { 0, -2, 0, 0 } } },
+        { Style::rnb,       { { 0, -1, 0, -1 }, { 0, 4, 0, 0 }, { 0, 0, -1, 0 }, { 0, 0, 0, 0 } } },
+        { Style::reggaeton, { { 0, 0, 0, 0 }, { 0, 0, 0, -1 } } },
+        { Style::house,     { { 0, 0, 0, 0 }, { 0, 8, 0, 0 }, { 0, -2, 0, -2 } } },
+        { Style::loFi,      { { 0, H, 0, H }, { 0, 0, H, 0 }, { 0, -1, 0, 0 } } },
+    };
+    return t.at(s);
+}
+
 const Profile& profile(Style s) {
     using V = Vibe;
     static const std::map<Style, Profile> table {
@@ -75,26 +98,6 @@ const Profile& profile(Style s) {
             .cells = { {{0,4.0/3},{4.0/3,4.0/3},{8.0/3,8.0/3},{6,2},{8,1},{9,1},{10,6}}, {{0,3},{3,1},{4,4},{10,2},{12,4}},
                        {{0,2},{3,2},{6,2},{10,4.0/3},{34.0/3,4.0/3},{38.0/3,10.0/3}} },
             .bass = { {{0,3,root},{3,3,root},{6,4,octave},{11,2,root},{13,3,approach}}, {{0,6,root},{6,4,root},{10,6,octave}} } } },
-        { Style::piseiro, { .harmony = ccp::Style::latin, .rep = .15, .stac = .8, .leap = 4, .span = 10, .appr = .05, .arp = .45, .ext = false, .glide = false,
-            .swing16 = .05, .swing8 = 0, .anticipate = .15, .grace = .15, .overlap = .05, .texture = Texture::thirds, .voice = .55,
-            .forms = "AABA|ABAB|AABC", .vibes = { V::happy, V::romantic, V::sad },
-            .cells = { {{0,2},{2,2},{4,2},{6,2},{8,2},{10,2},{12,4}}, {{0,1},{2,1},{4,2},{8,1},{10,1},{12,4}},
-                       {{0,2},{2,1},{3,1},{4,2},{6,2},{8,4},{12,2},{14,2}} },
-            .bass = { {{0,3,root},{3,1,fifth},{4,4,fifth},{8,3,root},{11,1,fifth},{12,4,fifth}},
-                      {{0,3,root},{3,5,root},{8,3,octave},{11,5,root}} } } },
-        { Style::sertanejo, { .harmony = ccp::Style::pop, .rep = .15, .stac = 1.0, .leap = 4, .span = 10, .appr = .04, .arp = .2, .ext = false, .glide = false,
-            .swing16 = 0, .swing8 = 0, .anticipate = .25, .grace = .2, .overlap = .15, .texture = Texture::thirds, .voice = .7,
-            .forms = "AABA|ABAC|AABC", .vibes = { V::romantic, V::sad, V::happy },
-            .cells = { {{0,2},{2,2},{4,4},{8,2},{10,2},{12,4}}, {{2,1},{3,1},{4,2},{6,2},{8,6},{14,2}},
-                       {{0,3},{3,1},{4,4},{10,2},{12,4}}, {{0,2},{2,2},{4,2},{6,6},{12,2},{14,2}} },
-            .bass = { {{0,3,root},{3,3,root},{6,2,fifth},{8,3,root},{11,3,root},{14,2,approach}},
-                      {{0,4,root},{4,4,fifth},{8,4,root},{12,4,fifth}} } } },
-        { Style::pagode, { .harmony = ccp::Style::latin, .rep = .2, .stac = .85, .leap = 4, .span = 9, .appr = .12, .arp = .2, .ext = true, .glide = false,
-            .swing16 = .1, .swing8 = 0, .anticipate = .3, .grace = .25, .overlap = .1, .texture = Texture::thirds, .voice = .35,
-            .forms = "AABA|ABAB|ABAC", .vibes = { V::happy, V::romantic, V::chill },
-            .cells = { {{0,2},{3,1},{4,2},{7,1},{8,3},{11,1},{12,4}}, {{1,2},{3,2},{6,2},{8,2},{10,2},{12,4}},
-                       {{0,1},{2,2},{4,1},{6,2},{8,1},{10,2},{12,4}} },
-            .bass = { {{0,3,root},{3,1,root},{4,2,fifth},{8,3,root},{11,1,octave},{12,4,approach}} } } },
         { Style::bossaNova, { .harmony = ccp::Style::jazz, .rep = .1, .stac = 1.0, .leap = 5, .span = 10, .appr = .15, .arp = .2, .ext = true, .glide = false,
             .swing16 = 0, .swing8 = 0, .anticipate = .4, .grace = .1, .overlap = .25, .texture = Texture::shell, .voice = .3,
             .forms = "AABA|ABAC", .vibes = { V::chill, V::romantic, V::sad },
@@ -117,11 +120,6 @@ const Profile& profile(Style s) {
             .forms = "AABA|AAAB|ABAB", .vibes = { V::happy, V::dark, V::romantic },
             .cells = { {{0,3},{3,3},{6,2},{8,3},{11,3},{14,2}}, {{0,2},{3,1},{4,4},{8,2},{11,1},{12,4}}, {{3,3},{6,2},{11,3},{14,2}} },
             .bass = { {{0,3,root},{3,1,root},{4,2,root},{6,2,octave},{8,3,root},{11,1,root},{12,2,root},{14,2,octave}} } } },
-        { Style::afrobeat, { .harmony = ccp::Style::latin, .rep = .25, .stac = .8, .leap = 4, .span = 8, .appr = .05, .arp = .25, .ext = false, .glide = false,
-            .swing16 = .08, .swing8 = 0, .anticipate = .15, .grace = .15, .overlap = .05, .texture = Texture::thirds, .voice = .25,
-            .forms = "AAAB|AABA|ABAB", .vibes = { V::happy, V::chill, V::romantic },
-            .cells = { {{0,2},{2,1},{3,2},{6,2},{8,2},{10,1},{11,2},{14,2}}, {{1,2},{3,3},{8,1},{9,2},{12,4}}, {{0,3},{3,3},{6,2},{10,2},{12,3}} },
-            .bass = { {{0,2,root},{3,2,root},{6,3,fifth},{10,2,root},{12,2,octave},{14,2,approach}} } } },
         { Style::house, { .harmony = ccp::Style::house, .rep = .45, .stac = .75, .leap = 3, .span = 6, .appr = 0, .arp = .2, .ext = true, .glide = false,
             .swing16 = .06, .swing8 = 0, .anticipate = .1, .grace = 0, .overlap = .05, .texture = Texture::octaves, .voice = .25,
             .forms = "AAAB|AABA", .vibes = { V::happy, V::hypnotic, V::epic },
@@ -138,6 +136,7 @@ const Profile& profile(Style s) {
 
 struct VibeMod { int lean, spanAdd, leapAdd, contour; double repAdd, overlapAdd, voiceAdd; };
 VibeMod vibeMod(Vibe v) {
+    return {};   // the vibe changes the sound only, never the notes
     switch (v) {
         case Vibe::dark:     return { -1, 0, 0, -1, .05, 0, 0 };
         case Vibe::happy:    return { 1, 1, 0, 1, 0, 0, .05 };
@@ -183,8 +182,9 @@ ccp::GenerationSettings harmonySettings(Style style, Vibe vibe, const Settings& 
     ccp::GenerationSettings g;
     g.key = s.key; g.scale = s.scale;
     g.style = style == Style::automatic ? ccp::Style::standard : profile(style).harmony;
-    g.mood = vibe == Vibe::automatic ? ccp::Mood::standard : moods.at(vibe);
-    g.complexity = ccp::Complexity::automatic;
+    (void) vibe; (void) moods;
+    g.mood = ccp::Mood::standard;             // chords follow the style; the vibe is sound only
+    g.complexity = ccp::Complexity::simple;   // simple chords: triads, plain sevenths at most
     return g;
 }
 
@@ -214,36 +214,75 @@ int Engine::subPitch(const ccp::Chord& c) {
 std::vector<Note> Engine::bassFor(const Pattern& pat) {
     const auto& prof = profile(pat.style);
     const auto& tpl = pick(rng, prof.bass);
-    const auto& p = pat.progression;
+    const int bars = pat.bars();
     std::vector<Note> out;
-    for (int b = 0; b < p.chordCount; ++b) {
-        const auto& chord = p.chords[(size_t) b];
+    auto pitchFor = [&](int tick, int kind) {
+        const int ci = pat.chordIndexAt(tick);
+        const auto& chord = pat.progression.chords[(size_t) ci];
         const int sub = subPitch(chord);
-        const int next = subPitch(p.chords[(size_t) ((b + 1) % p.chordCount)]);
+        int nextCi = ci, t2 = tick;
+        while (nextCi == ci && t2 < pat.lengthTicks()) { t2 += step; nextCi = pat.chordIndexAt(t2); }
+        const int next = subPitch(pat.progression.chords[(size_t) (t2 >= pat.lengthTicks() ? 0 : nextCi)]);
         int third = sub + 4;
         for (int pc : chordPitchClasses(chord)) { const int iv = wrap12(pc - chord.root); if (iv == 3 || iv == 4) third = sub + iv; }
-        int prev = -1;
+        if (kind == octave) return sub + 12;
+        if (kind == fifth) return sub + 7 > 45 ? sub - 5 : sub + 7;
+        if (kind == BassKind::third) return third;
+        if (kind == approach) return next == sub ? sub + 7 : next + (next > sub ? -1 : 1);
+        return sub;
+    };
+    for (int b = 0; b < bars; ++b) {
         for (size_t i = 0; i < tpl.size(); ++i) {
             const auto& h = tpl[i];
             if (pat.settings.density == Density::low && i > 0 && h.kind != root && i % 2 == 1) continue;
-            int pitch = sub;
-            if (h.kind == octave) pitch = sub + 12;
-            else if (h.kind == fifth) pitch = sub + 7 > 45 ? sub - 5 : sub + 7;
-            else if (h.kind == third) pitch = third;
-            else if (h.kind == approach) pitch = next == sub ? sub + 7 : next + (next > sub ? -1 : 1);
             Note n;
             n.start = b * barTicks + ticks(h.on);
             n.length = std::max(step / 2, ticks(h.len) - step / 4);
-            n.pitch = pitch;
+            n.pitch = pitchFor(n.start, h.kind);
             n.velocity = h.on == 0 ? 112 : 96;
-            n.glide = prof.glide && prev >= 0 && prev != pitch && h.kind == octave;
             out.push_back(n);
-            prev = pitch;
+        }
+        // a chord that arrives off the bar line gets its own sub hit
+        const int change = b * barTicks + pat.chordShift[(size_t) b] * step;
+        if (b > 0 && pat.chordShift[(size_t) b] != 0) {
+            out.erase(std::remove_if(out.begin(), out.end(), [&](const Note& n) { return std::abs(n.start - change) < step; }), out.end());
+            out.push_back({ change, 2 * step, pitchFor(change, root), 110, false });
         }
     }
+    // a note never rings over a chord change
+    std::sort(out.begin(), out.end(), [](const Note& a, const Note& b) { return a.start < b.start; });
+    for (size_t i = 0; i + 1 < out.size(); ++i) out[i].length = std::min(out[i].length, std::max(step / 2, out[i + 1].start - out[i].start - step / 8));
     applySwing(out, prof);
     std::sort(out.begin(), out.end(), [](const Note& a, const Note& b) { return a.start < b.start; });
     return out;
+}
+
+void Engine::shapeHarmony(Pattern& p, const std::array<bool, maxBars>& locked, const Pattern* current) {
+    const auto gs = harmonySettings(p.style, p.vibe, p.settings);
+    const bool sevenths = p.style == Style::jazz || p.style == Style::rnb || p.style == Style::loFi || p.style == Style::bossaNova;
+    const int n = p.bars();
+    // simple chords: diatonic triads, plain sevenths for the jazzy styles
+    for (int b = 0; b < n; ++b) {
+        if (locked[(size_t) b]) continue;
+        auto& c = p.progression.chords[(size_t) b];
+        const auto kind = sevenths && chance(rng) < .7 ? ccp::ChordKind::seventh : ccp::ChordKind::triad;
+        c = ccp::HarmonyEngine::buildChord(gs, c.degree, kind, b ? &p.progression.chords[(size_t) (b - 1)] : nullptr, b);
+    }
+    // harmonic rhythm
+    const auto& tpls = harmonicRhythm(p.style);
+    std::array<int, 4> tpl = tpls[(size_t) std::uniform_int_distribution<int>(0, (int) tpls.size() - 1)(rng)];
+    p.chordShift = {};
+    for (int b = 0; b < n; ++b) {
+        if (locked[(size_t) b] && current) { p.chordShift[(size_t) b] = current->chordShift[(size_t) b]; continue; }
+        int v = tpl[(size_t) (b % 4)];
+        if (n == 8 && b >= 4 && chance(rng) < .3) v = 0;   // second half varies a little
+        if (b == 0) v = 0;
+        if (v == H) {
+            if (!locked[(size_t) (b - 1)]) p.progression.chords[(size_t) b] = p.progression.chords[(size_t) (b - 1)];
+            v = 0;
+        }
+        p.chordShift[(size_t) b] = v;
+    }
 }
 
 /* Phrase engine.
@@ -412,6 +451,15 @@ std::vector<Note> Engine::melodyAttempt(const Pattern& pat, const std::vector<No
             }
         }
     }
+    for (auto& n : out) {
+        const int bar = barOf(n.start);
+        if (bar < maxBars && locked[(size_t) bar]) continue;
+        if (pat.chordIndexAt(n.start) == std::min(bar, pat.bars() - 1) || n.start % ppq != 0) continue;
+        auto pcs = chordPitchClasses(pat.chordAt(n.start));
+        if (has(pcs, wrap12(n.pitch))) continue;
+        for (int d : { 1, -1, 2, -2, 3, -3, 4, -4 })
+            if (has(pcs, wrap12(n.pitch + d)) && has({ scale.begin(), scale.end() }, wrap12(n.pitch + d))) { n.pitch += d; break; }
+    }
     std::sort(out.begin(), out.end(), [](const Note& a, const Note& b) { return a.start < b.start; });
     return out;
 }
@@ -433,7 +481,7 @@ double Engine::score(const Pattern& pat, const std::vector<Note>& m) {
         const int bar = std::min(pat.bars() - 1, barOf(n.start));
         if (n.start % ppq == 0) {
             ++strong;
-            if (has(chordPitchClasses(pat.progression.chords[(size_t) bar]), wrap12(n.pitch))) ++strongHits;
+            if (has(chordPitchClasses(pat.chordAt(n.start)), wrap12(n.pitch))) ++strongHits;
         }
         if (i) {
             const int d = n.pitch - m[i - 1].pitch, ad = std::abs(d);
@@ -533,7 +581,7 @@ std::vector<Note> Engine::melodyFor(const Pattern& pat, const std::vector<Note>&
                 case Texture::sixths: if (pi >= 5) v = pool[(size_t) (pi - 5)]; break;
                 case Texture::octaves: v = n.pitch - 12; break;
                 case Texture::shell: {
-                    const auto pcs = chordPitchClasses(pat.progression.chords[(size_t) std::min(pat.bars() - 1, barOf(n.start))]);
+                    const auto pcs = chordPitchClasses(pat.chordAt(n.start));
                     for (int p = n.pitch - 3; p >= n.pitch - 9; --p) if (has(pcs, wrap12(p)) && consonant(p, n.pitch)) { v = p; break; }
                     break;
                 }
@@ -552,9 +600,6 @@ std::vector<Note> Engine::melodyFor(const Pattern& pat, const std::vector<Note>&
         const int g = chromatic ? n.pitch - 1 : pool[(size_t) std::min((int) pool.size() - 1, poolIndex(n.pitch) + 1)];
         graces.push_back({ n.start - step / 2, step / 2 - 10, g, std::max(40, n.velocity - 20), false });
     }
-    if (st.glide)
-        for (size_t i = 1; i < main.size(); ++i)
-            main[i].glide = main[i - 1].start + main[i - 1].length >= main[i].start - step / 2 && chance(rng) < .3;
 
     std::vector<Note> all = main;
     all.insert(all.end(), voices.begin(), voices.end());
@@ -579,6 +624,11 @@ Pattern Engine::generate(const Settings& s, const Pattern* current, const std::a
     std::array<bool, ccp::maxChords> chordLocks {};
     if (sameShape) for (int i = 0; i < s.bars; ++i) chordLocks[(size_t) i] = locked[(size_t) i];
     out.progression = harmony.generate(harmonySettings(out.style, out.vibe, s), sameShape ? &current->progression : nullptr, chordLocks, s.bars);
+    {
+        std::array<bool, maxBars> lk {};
+        if (sameShape) lk = locked;
+        shapeHarmony(out, lk, sameShape ? current : nullptr);
+    }
     out.bass = bassFor(out);
     if (sameShape)
         for (int b = 0; b < s.bars; ++b) if (locked[(size_t) b]) {
@@ -595,6 +645,13 @@ Pattern Engine::newMelody(const Pattern& p, const Settings& s, const std::array<
     Pattern out = p;
     out.settings.role = s.role; out.settings.density = s.density; out.settings.range = s.range;
     out.melody = melodyFor(out, p.melody, locked);
+    return out;
+}
+
+Pattern Engine::withVibe(const Pattern& p, Vibe v) {
+    Pattern out = p;
+    out.settings.vibe = v;
+    out.vibe = resolveVibe(v, p.style);
     return out;
 }
 
@@ -633,7 +690,7 @@ Pattern Engine::setChord(const Pattern& p, int bar, const ccp::Chord& chord) {
         out.progression.chords[(size_t) i] = ccp::HarmonyEngine::rebuild(gs, out.progression.chords[(size_t) i], &out.progression.chords[(size_t) (i - 1)], i);
     // move this bar's sub to the new root (keeping its rhythm), then rewrite only this bar's melody
     const int shift = subPitch(out.progression.chords[(size_t) bar]) - subPitch(p.progression.chords[(size_t) bar]);
-    for (auto& n : out.bass) if (barOf(n.start) == bar) n.pitch += shift;
+    for (auto& n : out.bass) if (out.chordIndexAt(n.start) == bar) n.pitch += shift;
     if (bar > 0) { // the previous bar's last sub note leads into the new root
         Note* lastPrev = nullptr;
         for (auto& n : out.bass) if (barOf(n.start) == bar - 1) lastPrev = &n;
@@ -680,8 +737,8 @@ std::vector<uint8_t> midiBytes(const std::vector<Note>& notes, int bpm, int chan
 }
 
 const char* styleName(Style x) {
-    static const char* n[] { "PADRÃO", "FUNK BR", "POP", "TRAP", "PHONK", "DRILL", "PISEIRO", "SERTANEJO", "PAGODE",
-                             "BOSSA NOVA", "JAZZ", "R&B", "REGGAETON", "AFROBEAT", "HOUSE", "LO-FI" };
+    static const char* n[] { "PADRÃO", "FUNK BR", "POP", "TRAP", "PHONK", "DRILL",
+                             "BOSSA NOVA", "JAZZ", "R&B", "REGGAETON", "HOUSE", "LO-FI" };
     return n[(int) x];
 }
 const char* vibeName(Vibe x) { static const char* n[] { "PADRÃO", "DARK", "HAPPY", "SAD", "HYPNOTIC", "EPIC", "CHILL", "ROMANTIC" }; return n[(int) x]; }
