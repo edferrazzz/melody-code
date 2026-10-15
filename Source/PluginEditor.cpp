@@ -425,7 +425,7 @@ void SettingsPanel::paint(juce::Graphics& g) {
     section("MIDI", 266);
     toggle(midiRow(), "Enviar MIDI para a DAW", proc.midiOut.load(), {});
     g.setColour(quiet.brighter(0.4f)); g.setFont(font(12.0f));
-    g.drawFittedText(juce::String::fromUTF8("Melodia no canal 1 e sub no canal 2, pra gravar ou tocar com outro instrumento."),
+    g.drawFittedText(juce::String::fromUTF8("Melodia no canal 1 e grave no canal 2, pra gravar ou tocar com outro instrumento."),
                      juce::Rectangle<int>(18, 334, panelWidth - 36, 32), juce::Justification::centredLeft, 2, 1.0f);
     divider(372);
     g.setColour(mute); g.setFont(font(12.0f));
@@ -507,58 +507,10 @@ void PianoRoll::refresh() {
         lo = mn - 3; hi = mx + 3;
         if (hi - lo < 20) { const int extra = 20 - (hi - lo); lo -= extra / 2; hi += extra - extra / 2; }
     }
-    rebuildChordBoxes();
-    resized();
     repaint();
 }
 
-void PianoRoll::rebuildChordBoxes() {
-    const int bars = pat.bars();
-    while (chordBoxes.size() > bars) { chordBoxes.removeLast(); lockButtons.removeLast(); }
-    while (chordBoxes.size() < bars) {
-        const int bar = chordBoxes.size();
-        auto* box = chordBoxes.add(new juce::ComboBox());
-        box->setTooltip("Acorde do compasso " + juce::String(bar + 1));
-        box->onChange = [this, bar, box] {
-            const int id = box->getSelectedId();
-            if (id >= 10 && bar < (int) choices.size() && id - 10 < (int) choices[(size_t) bar].size())
-                proc.setChord(bar, choices[(size_t) bar][(size_t) (id - 10)]);
-        };
-        addAndMakeVisible(box);
-        auto* lock = lockButtons.add(new LockButton());
-        lock->onClick = [this, bar] { proc.toggleLock(bar); };
-        addAndMakeVisible(lock);
-    }
-    const auto gs = mc::harmonySettings(pat.style, pat.vibe, pat.settings);
-    choices.assign((size_t) bars, {});
-    for (int b = 0; b < bars; ++b) {
-        auto* box = chordBoxes[b];
-        box->clear(juce::dontSendNotification);
-        const auto& cur = pat.progression.chords[(size_t) b];
-        box->addItem(juce::String(roman[cur.degree % 7]) + "  " + cur.name, 1);
-        box->addSeparator();
-        for (int d = 0; d < 7; ++d)
-            for (auto kind : { ccp::ChordKind::triad, ccp::ChordKind::seventh, ccp::ChordKind::sus2 }) {
-                auto c = ccp::HarmonyEngine::buildChord(gs, d, kind);
-                choices[(size_t) b].push_back(c);
-                box->addItem(juce::String(roman[d]) + "  " + c.name, 10 + (int) choices[(size_t) b].size() - 1);
-            }
-        box->setSelectedId(1, juce::dontSendNotification);
-        lockButtons[b]->locked = proc.isLocked(b);
-        lockButtons[b]->repaint();
-    }
-}
-
-void PianoRoll::resized() {
-    const auto a = noteArea();
-    for (int b = 0; b < chordBoxes.size(); ++b) {
-        const float x = a.getX() + (float) (b * mc::stepsPerBar) * stepW();
-        const float w = (float) mc::stepsPerBar * stepW();
-        const int boxW = (int) juce::jmin(150.0f, w - 44);
-        chordBoxes[b]->setBounds((int) x + 6, 6, boxW, 26);
-        lockButtons[b]->setBounds((int) (x + w) - 34, 6, 28, 26);
-    }
-}
+void PianoRoll::resized() {}
 
 void PianoRoll::paint(juce::Graphics& g) {
     auto all = getLocalBounds().toFloat();
@@ -567,7 +519,7 @@ void PianoRoll::paint(juce::Graphics& g) {
     g.fillAll(juce::Colour(0xff0f121a));
     const auto a = noteArea();
     const float rh = rowH(), sw = stepW();
-    const auto scale = ccp::HarmonyEngine::scaleNotes(pat.settings.key, pat.settings.scale);
+    const auto scale = ccp::HarmonyEngine::scaleNotes(pat.key, pat.scale);
     auto inScale = [&](int m) { return std::find(scale.begin(), scale.end(), m % 12) != scale.end(); };
     const int bars = pat.bars(), steps = bars * mc::stepsPerBar;
 
@@ -599,10 +551,6 @@ void PianoRoll::paint(juce::Graphics& g) {
             g.setColour(Theme::acc2.withAlpha(0.8f));
             g.fillRect(x - 1.0f, a.getY(), 2.0f, a.getHeight());
         }
-        if (proc.isLocked(b)) {
-            g.setColour(Theme::acc.withAlpha(0.07f));
-            g.fillRect(a.getX() + (float) (b * 16) * sw, 0.0f, 16 * sw, all.getHeight());
-        }
     }
     // header + sub lane backgrounds
     g.setColour(juce::Colour(0xff0f121a));
@@ -612,7 +560,22 @@ void PianoRoll::paint(juce::Graphics& g) {
     g.fillRect(0.0f, lane.getY(), all.getWidth(), lane.getHeight());
     g.setColour(Theme::quiet);
     g.setFont(Theme::font(11.0f, true));
-    g.drawText("SUB", juce::Rectangle<float>(0, lane.getY(), (float) keyW, lane.getHeight()), juce::Justification::centred);
+    g.drawText("BASS", juce::Rectangle<float>(0, lane.getY(), (float) keyW, lane.getHeight()), juce::Justification::centred);
+    // chord names where each chord really starts (generated for the whole loop, not picked per bar)
+    for (int b = 0; b < bars; ++b) {
+        if (b > 0 && pat.progression.chords[(size_t) b].name == pat.progression.chords[(size_t) (b - 1)].name && pat.chordShift[(size_t) b] == 0) continue;
+        const auto& c = pat.progression.chords[(size_t) b];
+        const float x = a.getX() + (float) (b * 16 + pat.chordShift[(size_t) b]) * sw;
+        auto chip = juce::Rectangle<float>(x + 6, 7, 120, 24);
+        g.setColour(Theme::panel2);
+        g.fillRoundedRectangle(chip, 7);
+        g.setColour(Theme::acc.withAlpha(0.8f));
+        g.setFont(Theme::font(11.0f, true));
+        g.drawText(juce::String(roman[c.degree % 7]), chip.removeFromLeft(30), juce::Justification::centred);
+        g.setColour(Theme::fg);
+        g.setFont(Theme::font(13.0f, true));
+        g.drawText(c.name, chip.withTrimmedRight(6), juce::Justification::centredLeft);
+    }
     // grid
     for (int s = 0; s <= steps; ++s) {
         g.setColour(s % 16 == 0 ? juce::Colour(0xff3a4360) : s % 4 == 0 ? juce::Colour(0xff222838) : juce::Colour(0xff171b26));
@@ -675,8 +638,8 @@ void PianoRoll::mouseDown(const juce::MouseEvent& e) {
     if (h.index < 0) {
         const int st = (int) std::floor(stepAt(p.x));
         const int bar = st / mc::stepsPerBar;
-        if (bar < 0 || bar >= pat.bars() || proc.isLocked(bar)) return;
-        notes.push_back({ st * mc::step, 2 * mc::step, pitchAt(p.y), 100, false });
+        if (bar < 0 || bar >= pat.bars()) return;
+        notes.push_back({ st * mc::step, 2 * mc::step, pitchAt(p.y), 100 });
         h = { (int) notes.size() - 1, false };
     }
     auto& n = notes[(size_t) h.index];
@@ -755,15 +718,17 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     setLookAndFeel(&look);
     addAndMakeVisible(content);
 
-    for (int i = 0; i < 12; ++i) keyBox.addItem(noteNames[i], i + 1);
-    for (int i = 0; i < (int) ccp::ScaleType::count; ++i) scaleBox.addItem(utf8(ccp::scaleName((ccp::ScaleType) i)), i + 1);
+    keyBox.addItem(utf8("PADR\xc3\x83O"), 1);
+    for (int i = 0; i < 12; ++i) keyBox.addItem(noteNames[i], i + 2);
+    scaleBox.addItem(utf8("PADR\xc3\x83O"), 1);
+    for (int i = 0; i < (int) ccp::ScaleType::count; ++i) scaleBox.addItem(utf8(ccp::scaleName((ccp::ScaleType) i)), i + 2);
     for (int i = 0; i < (int) mc::Style::count; ++i) styleBox.addItem(utf8(mc::styleName((mc::Style) i)), i + 1);
     for (int i = 0; i < (int) mc::Vibe::count; ++i) vibeBox.addItem(utf8(mc::vibeName((mc::Vibe) i)), i + 1);
     for (int i = 0; i < Synth::presetCount; ++i) soundBox.addItem(Synth::presetName(i), i + 1);
     auto onSetting = [this] {
         auto& s = proc.settings();
-        s.key = keyBox.getSelectedId() - 1;
-        s.scale = (ccp::ScaleType) (scaleBox.getSelectedId() - 1);
+        s.key = keyBox.getSelectedId() - 2;      // id 1 = PADRÃO (-1)
+        s.scale = scaleBox.getSelectedId() - 2;
         s.style = (mc::Style) (styleBox.getSelectedId() - 1);
         proc.applySettings();
     };
@@ -777,8 +742,9 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     role.onChange = [this](int i) { proc.settings().role = (mc::Role) i; proc.newMelody(); };
     density.onChange = [this](int i) { proc.settings().density = (mc::Density) i; proc.newMelody(); };
     range.onChange = [this](int i) { proc.settings().range = (mc::Range) i; proc.newMelody(); };
+    feel.onChange = [this](int i) { proc.settings().feel = (mc::Feel) i; proc.newMelody(); };
     bars.onChange = [this](int i) { proc.settings().bars = i == 0 ? 2 : i == 1 ? 4 : 8; proc.applySettings(); };
-    for (auto* s : { &role, &density, &range, &bars }) content.addAndMakeVisible(s);
+    for (auto* s : { &role, &feel, &density, &range, &bars }) content.addAndMakeVisible(s);
 
     auto setupSlider = [this](juce::Slider& s, double lo, double hi, double v, std::function<void(double)> f) {
         s.setSliderStyle(juce::Slider::LinearHorizontal);
@@ -789,14 +755,13 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
         content.addAndMakeVisible(s);
     };
     setupSlider(bpm, 70, 170, proc.bpm, [this](double v) { proc.bpm = (int) v; content.repaint(); });
-    setupSlider(subVol, 0, 100, proc.subLevel * 100, [this](double v) { proc.subLevel = (float) v / 100.0f; content.repaint(); });
+    setupSlider(bassVol, 0, 100, proc.bassLevel * 100, [this](double v) { proc.bassLevel = (float) v / 100.0f; content.repaint(); });
     setupSlider(melVol, 0, 100, proc.melodyLevel * 100, [this](double v) { proc.melodyLevel = (float) v / 100.0f; content.repaint(); });
 
     play.onClick = [this] { proc.setPlaying(!proc.isPlaying()); };
     vari.onClick = [this] { proc.variation(); };
     newMel.onClick = [this] { proc.newMelody(); };
     gen.onClick = [this] { proc.generateAll(); };
-    newSub.onClick = [this] { proc.newBass(); };
     save.onClick = [this] { saveMidi(); };
     dragBtn.onClick = [this] { showHint(utf8("Arraste este bot\xc3\xa3o para a sua DAW")); };
     dragBtn.files = [this] { return writeMidiFiles(juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("MelodyCode"), "Melody Code"); };
@@ -805,7 +770,7 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
         for (int i = 0; i < proc.historySize(); ++i) m.addItem(i + 1, proc.historyLabel(i));
         m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(historyBtn), [this](int r) { if (r > 0) proc.restoreHistory(r - 1); });
     };
-    for (auto* b : std::initializer_list<juce::Button*> { &play, &vari, &newMel, &gen, &newSub, &historyBtn, &save, &dragBtn }) {
+    for (auto* b : std::initializer_list<juce::Button*> { &play, &vari, &newMel, &gen, &historyBtn, &save, &dragBtn }) {
         b->setMouseCursor(juce::MouseCursor::PointingHandCursor);
         content.addAndMakeVisible(b);
     }
@@ -831,14 +796,15 @@ MelodyCodeEditor::~MelodyCodeEditor() {
 
 void MelodyCodeEditor::syncControls() {
     const auto& s = proc.settings();
-    keyBox.setSelectedId(s.key + 1, juce::dontSendNotification);
-    scaleBox.setSelectedId((int) s.scale + 1, juce::dontSendNotification);
+    keyBox.setSelectedId(s.key + 2, juce::dontSendNotification);
+    scaleBox.setSelectedId(s.scale + 2, juce::dontSendNotification);
     styleBox.setSelectedId((int) s.style + 1, juce::dontSendNotification);
     vibeBox.setSelectedId((int) s.vibe + 1, juce::dontSendNotification);
     soundBox.setSelectedId(proc.preset + 1, juce::dontSendNotification);
     role.setSelected((int) s.role);
     density.setSelected((int) s.density);
     range.setSelected((int) s.range);
+    feel.setSelected((int) s.feel);
     bars.setSelected(s.bars == 2 ? 0 : s.bars == 4 ? 1 : 2);
     bpm.setValue(proc.bpm, juce::dontSendNotification);
     play.setButtonText(proc.isPlaying() ? "PARAR" : "OUVIR");
@@ -872,7 +838,7 @@ juce::StringArray MelodyCodeEditor::writeMidiFiles(const juce::File& folder, con
         if (f.replaceWithData(bytes.data(), bytes.size())) out.add(f.getFullPathName());
     };
     write(p.melody, "Melody", 0);
-    write(p.bass, "Sub", 1);
+    write(p.bass, "Bass", 1);
     return out;
 }
 
@@ -916,17 +882,17 @@ void MelodyCodeEditor::layout() {
     roll.setBounds(L::pad, L::rollY, W, L::rollH);
     gear.setBounds(Theme::width - L::pad - 40, 22, 40, 40);
     {
-        const int gap = 12, w = (W - 3 * gap) / 4;
+        const int gap = 12, w5 = (W - 4 * gap) / 5, w = (W - 3 * gap) / 4;
         int x = L::pad;
-        for (auto* s : { &role, &density, &range, &bars }) { s->setBounds(x + 14, L::ctlY + 32, w - 28, 40); x += w + gap; }
+        for (auto* s : { &role, &feel, &density, &range, &bars }) { s->setBounds(x + 14, L::ctlY + 32, w5 - 28, 40); x += w5 + gap; }
         x = L::pad;
-        for (auto* s : { &bpm, &subVol, &melVol }) { s->setBounds(x + 14, L::ctl2Y + 36, w - 28 - 46, 24); x += w + gap; }
+        for (auto* s : { &bpm, &bassVol, &melVol }) { s->setBounds(x + 14, L::ctl2Y + 36, w - 28 - 46, 24); x += w + gap; }
         historyBtn.setBounds(x, L::ctl2Y, w, 70);
     }
     {
-        const int gap = 10, unit = (W - 6 * gap) / 8;
+        const int gap = 10, unit = (W - 6 * gap) / 7;
         int x = L::pad;
-        for (auto* b : std::initializer_list<juce::Button*> { &play, &vari, &newMel, &gen, &newSub, &dragBtn, &save }) {
+        for (auto* b : std::initializer_list<juce::Button*> { &play, &vari, &newMel, &gen, &dragBtn, &save }) {
             const int w = b == &gen ? unit * 2 + gap : unit;
             b->setBounds(x, L::actY, w, 56);
             x += w + gap;
@@ -968,9 +934,10 @@ void MelodyCodeEditor::paintContent(juce::Graphics& g) {
     const auto dot = utf8("  \xc2\xb7  ");
     const auto shownPat = proc.pattern();
     const auto arrow = utf8(" \xe2\x86\x92 ");
-    const juce::String styleInfo = (s.style == mc::Style::automatic ? utf8("PADR\xc3\x83O") + arrow : juce::String()) + utf8(mc::styleName(shownPat.style))
-                                 + " / " + (s.vibe == mc::Vibe::automatic ? utf8("PADR\xc3\x83O") + arrow : juce::String()) + utf8(mc::vibeName(shownPat.vibe));
-    const juce::String info = styleInfo + dot + juce::String(noteNames[s.key]) + " " + utf8(ccp::scaleName(s.scale)) + dot + juce::String(s.bars) + " BARS" + dot + juce::String(proc.bpm) + " BPM";
+    const auto padrao = utf8("PADR\xc3\x83O") + arrow;
+    const juce::String info = (s.style == mc::Style::automatic ? padrao : juce::String()) + utf8(mc::styleName(shownPat.style))
+                            + dot + (s.key < 0 || s.scale < 0 ? padrao : juce::String()) + juce::String(noteNames[shownPat.key]) + " " + utf8(ccp::scaleName(shownPat.scale))
+                            + dot + utf8(mc::vibeName(s.vibe)) + dot + juce::String(s.bars) + " BARS" + dot + juce::String(proc.bpm) + " BPM";
     g.setFont(font(12.0f, true).withExtraKerningFactor(0.1f));
     const float iw = juce::GlyphArrangement::getStringWidth(g.getCurrentFont(), info) + 34;
     auto pill = juce::Rectangle<float>((float) (width - L::pad) - 52 - iw, 26, iw, 32);
@@ -1006,10 +973,10 @@ void MelodyCodeEditor::paintContent(juce::Graphics& g) {
             g.drawText(value, r.withTrimmedRight(14).withTrimmedTop(32).withHeight(28).toFloat(), juce::Justification::centredRight);
         }
     };
-    const int gap = 12, w = (width - 2 * L::pad - 3 * gap) / 4;
-    const char* titles[] { "ROLE", "DENSITY", "RANGE", "BARS" };
-    for (int i = 0; i < 4; ++i) box({ L::pad + i * (w + gap), L::ctlY, w, 80 }, titles[i], {});
+    const int gap = 12, w = (width - 2 * L::pad - 3 * gap) / 4, w5 = (width - 2 * L::pad - 4 * gap) / 5;
+    const char* titles[] { "ROLE", "FEEL", "DENSITY", "RANGE", "BARS" };
+    for (int i = 0; i < 5; ++i) box({ L::pad + i * (w5 + gap), L::ctlY, w5, 80 }, titles[i], {});
     box({ L::pad, L::ctl2Y, w, 70 }, "BPM", juce::String(proc.bpm));
-    box({ L::pad + (w + gap), L::ctl2Y, w, 70 }, "SUB", juce::String((int) std::round(proc.subLevel * 100)));
+    box({ L::pad + (w + gap), L::ctl2Y, w, 70 }, "BASS", juce::String((int) std::round(proc.bassLevel * 100)));
     box({ L::pad + 2 * (w + gap), L::ctl2Y, w, 70 }, "MELODY", juce::String((int) std::round(proc.melodyLevel * 100)));
 }

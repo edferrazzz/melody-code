@@ -132,7 +132,6 @@ private:
     Hit hit(juce::Point<float>) const;
     juce::Rectangle<float> noteRect(const mc::Note&) const;
     void commit();
-    void rebuildChordBoxes();
 
     MelodyCodeProcessor& proc;
     mc::Pattern pat;
@@ -140,9 +139,6 @@ private:
     int lo { 55 }, hi { 79 };
     int selected { -1 };
     struct Drag { int index { -1 }; bool resize {}; double offset {}; int pitch0 {}, startPitch {}; bool moved {}; } drag;
-    juce::OwnedArray<juce::ComboBox> chordBoxes;
-    juce::OwnedArray<LockButton> lockButtons;
-    std::vector<std::vector<ccp::Chord>> choices;
 };
 
 class MelodyCodeEditor : public juce::AudioProcessorEditor, public juce::DragAndDropContainer,
@@ -173,11 +169,11 @@ private:
     Content content { *this };
     juce::ComboBox keyBox, scaleBox, styleBox, vibeBox, soundBox;
     PianoRoll roll { proc };
-    Segmented role { { "LEAD", "HOOK", "COUNTER" } }, density { { "LOW", "MID", "HIGH" } },
+    Segmented role { { "LEAD", "HOOK", "COUNTER" } }, feel { { "STRAIGHT", "SWING", "TRIPLET" } }, density { { "LOW", "MID", "HIGH" } },
         range { { "LOW", "MID", "HIGH" } }, bars { { "2", "4", "8" } };
-    juce::Slider bpm, subVol, melVol;
+    juce::Slider bpm, bassVol, melVol;
     ActionButton play { "OUVIR", Icon::play }, vari { juce::String::fromUTF8("VARIAÇÃO"), Icon::variation },
-        newMel { "NOVA MELODIA", Icon::random }, gen { "GERAR", Icon::sparkle, true }, newSub { "NOVO SUB", Icon::sub },
+        newMel { "NOVA MELODIA", Icon::random }, gen { "GERAR", Icon::sparkle, true },
         historyBtn { juce::String::fromUTF8("HISTÓRICO"), Icon::history }, save { "SALVAR MIDI", Icon::save };
     DragMidiButton dragBtn { "ARRASTAR MIDI", Icon::midi };
     IconButton gear { Icon::gear };

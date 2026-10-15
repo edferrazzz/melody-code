@@ -7,21 +7,30 @@ MelodyCodeProcessor::MelodyCodeProcessor()
 }
 
 namespace {
-// The Vibe shapes the sound, not the notes.
-Synth::Character characterFor(mc::Vibe v) {
-    Synth::Character c;
+// The Vibe is the sound's aesthetic: tone, space, saturation and tape. It never touches the notes.
+Synth::Fx fxFor(mc::Vibe v) {
+    Synth::Fx f;
     switch (v) {
-        case mc::Vibe::dark:     c.bright = 0.55f; c.reverbSize = 0.75f; c.reverbWet = 0.30f; c.drive = 0.35f; c.delayWet = 0.22f; break;
-        case mc::Vibe::happy:    c.bright = 1.25f; c.reverbSize = 0.5f;  c.reverbWet = 0.2f;  c.octaveUp = 0.35f; c.delayWet = 0.16f; break;
-        case mc::Vibe::sad:      c.bright = 0.7f;  c.reverbSize = 0.8f;  c.reverbWet = 0.34f; c.wobble = 0.35f; c.delayWet = 0.24f; break;
-        case mc::Vibe::hypnotic: c.bright = 0.9f;  c.reverbSize = 0.65f; c.reverbWet = 0.25f; c.delayWet = 0.34f; c.delayFeedback = 0.5f; c.detune = 1.3f; break;
-        case mc::Vibe::epic:     c.bright = 1.15f; c.reverbSize = 0.9f;  c.reverbWet = 0.38f; c.octaveUp = 0.5f; c.detune = 1.7f; c.drive = 0.15f; break;
-        case mc::Vibe::chill:    c.bright = 0.8f;  c.reverbSize = 0.6f;  c.reverbWet = 0.26f; c.wobble = 0.25f; c.drive = 0.1f; break;
-        case mc::Vibe::romantic: c.bright = 0.95f; c.reverbSize = 0.7f;  c.reverbWet = 0.3f;  c.detune = 1.4f; c.octaveUp = 0.15f; break;
+        case mc::Vibe::clean:   // close and clear: a small room, a light echo
+            f.lowpass = 16000; f.chorus = 0.15f; f.delayMix = 0.08f; f.delayBeats = 0.75f; f.delayFeedback = 0.25f;
+            f.reverbMix = 0.18f; f.reverbTime = 1.1f; f.reverbDamp = 0.35f; f.preDelayMs = 8; break;
+        case mc::Vibe::dreamy:  // wide and soft: chorus, shimmer, a long bright hall
+            f.lowpass = 11000; f.chorus = 0.55f; f.octaveUp = 0.35f; f.delayMix = 0.18f; f.delayBeats = 0.75f; f.delayFeedback = 0.4f;
+            f.reverbMix = 0.45f; f.reverbTime = 4.0f; f.reverbDamp = 0.25f; f.preDelayMs = 30; break;
+        case mc::Vibe::dark:    // filtered and heavy: low-pass, warm drive, a dark long space
+            f.lowpass = 2600; f.highpass = 40; f.drive = 0.35f; f.chorus = 0.2f; f.delayMix = 0.14f; f.delayBeats = 1.0f; f.delayFeedback = 0.35f;
+            f.reverbMix = 0.35f; f.reverbTime = 3.5f; f.reverbDamp = 0.7f; f.preDelayMs = 20; break;
+        case mc::Vibe::tape:    // lo-fi: wow and flutter, reduced bits, rolled-off highs and lows, saturation
+            f.lowpass = 4800; f.highpass = 160; f.drive = 0.3f; f.tape = 0.7f; f.chorus = 0.1f; f.delayMix = 0.1f; f.delayBeats = 0.5f; f.delayFeedback = 0.3f;
+            f.reverbMix = 0.22f; f.reverbTime = 1.8f; f.reverbDamp = 0.6f; f.preDelayMs = 12; break;
+        case mc::Vibe::space:   // huge: ping-pong echoes and a very long reverb
+            f.lowpass = 13000; f.chorus = 0.35f; f.octaveUp = 0.15f; f.delayMix = 0.34f; f.delayBeats = 0.75f; f.delayFeedback = 0.5f;
+            f.reverbMix = 0.5f; f.reverbTime = 6.5f; f.reverbDamp = 0.35f; f.preDelayMs = 45; break;
         default: break;
     }
-    return c;
+    return f;
 }
+const char* keyNames[] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 }
 
 bool MelodyCodeProcessor::isBusesLayoutSupported(const BusesLayout& l) const {
@@ -37,15 +46,10 @@ void MelodyCodeProcessor::prepareToPlay(double rate, int) {
 
 mc::Pattern MelodyCodeProcessor::pattern() const { return shown; }
 
-std::array<bool, mc::maxBars> MelodyCodeProcessor::lockArray() const {
-    std::array<bool, mc::maxBars> l {};
-    for (int i = 0; i < shown.bars(); ++i) l[(size_t) i] = locks[(size_t) i];
-    return l;
-}
 
 void MelodyCodeProcessor::publish(mc::Pattern p, bool addHistory) {
     current = p.settings;
-    soundVibe = (int) p.vibe;
+    soundVibe = (int) p.settings.vibe;
     shown = p;
     {
         const juce::SpinLock::ScopedLockType sl(patternLock);
@@ -58,22 +62,16 @@ void MelodyCodeProcessor::publish(mc::Pattern p, bool addHistory) {
     sendChangeMessage();
 }
 
-void MelodyCodeProcessor::generateAll() {
-    const bool same = shown.bars() == current.bars;
-    publish(engine.generate(current, same ? &shown : nullptr, same ? lockArray() : std::array<bool, mc::maxBars> {}));
-}
-void MelodyCodeProcessor::applySettings() {
-    if (shown.bars() != current.bars) locks = {};
-    generateAll();
-}
-void MelodyCodeProcessor::newMelody() { publish(engine.newMelody(shown, current, lockArray())); }
+void MelodyCodeProcessor::generateAll() { publish(engine.generate(current)); }
+void MelodyCodeProcessor::applySettings() { generateAll(); }
+void MelodyCodeProcessor::newMelody() { publish(engine.newMelody(shown, current)); }
 void MelodyCodeProcessor::setVibe(mc::Vibe v) {
     current.vibe = v;
-    publish(engine.withVibe(shown, v), false);
+    shown.settings.vibe = v;
+    soundVibe = (int) v;
+    sendChangeMessage();
 }
-void MelodyCodeProcessor::newBass() { publish(engine.newBass(shown)); }
-void MelodyCodeProcessor::variation() { publish(engine.variation(shown, lockArray())); }
-void MelodyCodeProcessor::setChord(int bar, const ccp::Chord& c) { publish(engine.setChord(shown, bar, c)); }
+void MelodyCodeProcessor::variation() { publish(engine.variation(shown)); }
 void MelodyCodeProcessor::setMelody(std::vector<mc::Note> notes) {
     std::sort(notes.begin(), notes.end(), [](const mc::Note& a, const mc::Note& b) { return a.start < b.start; });
     auto p = shown;
@@ -85,10 +83,11 @@ juce::String MelodyCodeProcessor::historyLabel(int i) const {
     const auto& p = history[(size_t) i];
     juce::StringArray names;
     for (int c = 0; c < p.bars(); ++c) names.add(p.progression.chords[(size_t) c].name);
-    return "#" + juce::String((int) history.size() - i) + "  " + juce::String::fromUTF8(mc::styleName(p.style)) + " / " + juce::String::fromUTF8(mc::vibeName(p.vibe)) + "  " + names.joinIntoString(" - ");
+    return "#" + juce::String((int) history.size() - i) + "  " + juce::String::fromUTF8(mc::styleName(p.style)) + "  " + keyNames[p.key] + " "
+         + juce::String::fromUTF8(ccp::scaleName(p.scale)) + "  " + names.joinIntoString(" - ");
 }
 void MelodyCodeProcessor::restoreHistory(int i) {
-    if (i >= 0 && i < (int) history.size()) { locks = {}; publish(history[(size_t) i], false); }
+    if (i >= 0 && i < (int) history.size()) { auto p = history[(size_t) i]; p.settings.vibe = current.vibe; publish(std::move(p), false); }
 }
 
 void MelodyCodeProcessor::setPlaying(bool on) {
@@ -132,14 +131,14 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     wasRunning = running;
 
     synth.setPreset(preset);
-    synth.setCharacter(characterFor((mc::Vibe) soundVibe.load()));
-    synth.setLevels(subLevel, melodyLevel);
-    synth.setDelayTime(60.0 / tempo * 0.75);
+    synth.setFx(fxFor((mc::Vibe) soundVibe.load()));
+    synth.setLevels(bassLevel, melodyLevel);
+    synth.setTempo(tempo);
 
     struct Ev { int offset; mc::Note note; bool sub; };
     std::vector<Ev> events;
     if (const int a = pendingAudition.exchange(-1); a >= 0)
-        events.push_back({0, {0, (int) (mc::step * 2), a, 100, false}, false});
+        events.push_back({0, {0, (int) (mc::step * 2), a, 100}, false});
 
     if (running) {
         const juce::SpinLock::ScopedTryLockType sl(patternLock);
@@ -182,7 +181,7 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         const int at = juce::jlimit(0, n - 1, e.offset);
         if (at > done) { synth.render(l + done, r + done, at - done); done = at; }
         const int lenSamples = (int) (e.note.length * samplesPerTick);
-        synth.noteOn(e.note.pitch, e.note.velocity, lenSamples, false, e.sub);
+        synth.noteOn(e.note.pitch, e.note.velocity, lenSamples, e.sub);
         if (sendMidi && running) {
             const int ch = e.sub ? 2 : 1;
             for (auto it = midiOffs.begin(); it != midiOffs.end(); ++it)   // retrigger: close the old note first
@@ -200,13 +199,14 @@ juce::AudioProcessorEditor* MelodyCodeProcessor::createEditor() { return new Mel
 
 void MelodyCodeProcessor::getStateInformation(juce::MemoryBlock& dest) {
     juce::XmlElement root("MelodyCode");
-    const auto& s = shown.settings;
-    root.setAttribute("key", s.key); root.setAttribute("scale", (int) s.scale); root.setAttribute("style", (int) s.style);
-    root.setAttribute("vibe", (int) s.vibe); root.setAttribute("role", (int) s.role); root.setAttribute("density", (int) s.density);
-    root.setAttribute("range", (int) s.range); root.setAttribute("bars", s.bars);
+    const auto& s = current;
+    root.setAttribute("version", 3);
+    root.setAttribute("key", s.key); root.setAttribute("scale", s.scale); root.setAttribute("style", (int) s.style);
+    root.setAttribute("vibe", (int) s.vibe); root.setAttribute("feel", (int) s.feel); root.setAttribute("role", (int) s.role);
+    root.setAttribute("density", (int) s.density); root.setAttribute("range", (int) s.range); root.setAttribute("bars", s.bars);
     root.setAttribute("bpm", bpm); root.setAttribute("sync", syncToHost.load()); root.setAttribute("midiOut", midiOut.load());
-    root.setAttribute("resolvedStyle", (int) shown.style); root.setAttribute("resolvedVibe", (int) shown.vibe); root.setAttribute("preset", preset);
-    root.setAttribute("subLevel", subLevel); root.setAttribute("melodyLevel", melodyLevel);
+    root.setAttribute("resolvedStyle", (int) shown.style); root.setAttribute("resolvedKey", shown.key); root.setAttribute("resolvedScale", (int) shown.scale);
+    root.setAttribute("preset", preset); root.setAttribute("bassLevel", bassLevel); root.setAttribute("melodyLevel", melodyLevel);
     for (int i = 0; i < shown.bars(); ++i) {
         const auto& c = shown.progression.chords[(size_t) i];
         auto* x = root.createNewChildElement("chord");
@@ -215,31 +215,35 @@ void MelodyCodeProcessor::getStateInformation(juce::MemoryBlock& dest) {
     for (int t = 0; t < 2; ++t)
         for (const auto& n : t ? shown.bass : shown.melody) {
             auto* x = root.createNewChildElement(t ? "bass" : "note");
-            x->setAttribute("start", n.start); x->setAttribute("length", n.length); x->setAttribute("pitch", n.pitch);
-            x->setAttribute("velocity", n.velocity); x->setAttribute("glide", n.glide);
+            x->setAttribute("start", n.start); x->setAttribute("length", n.length); x->setAttribute("pitch", n.pitch); x->setAttribute("velocity", n.velocity);
         }
     copyXmlToBinary(root, dest);
 }
 
 void MelodyCodeProcessor::setStateInformation(const void* data, int size) {
     auto xml = getXmlFromBinary(data, size);
-    if (!xml || !xml->hasTagName("MelodyCode")) return;
+    if (!xml || !xml->hasTagName("MelodyCode") || xml->getIntAttribute("version") < 3) return;   // older sessions: start fresh
+    auto clampEnum = [&](const char* name, int count, int fallback) { const int v = xml->getIntAttribute(name, fallback); return v >= 0 && v < count ? v : fallback; };
     mc::Settings s;
-    s.key = xml->getIntAttribute("key", 9); s.scale = (ccp::ScaleType) xml->getIntAttribute("scale", 1);
-    s.style = (mc::Style) xml->getIntAttribute("style"); s.vibe = (mc::Vibe) xml->getIntAttribute("vibe");
-    s.role = (mc::Role) xml->getIntAttribute("role"); s.density = (mc::Density) xml->getIntAttribute("density", 1);
-    s.range = (mc::Range) xml->getIntAttribute("range", 1); s.bars = xml->getIntAttribute("bars", 4);
-    bpm = xml->getIntAttribute("bpm", 120); preset = xml->getIntAttribute("preset");
-    subLevel = (float) xml->getDoubleAttribute("subLevel", 0.8); melodyLevel = (float) xml->getDoubleAttribute("melodyLevel", 0.8);
+    s.key = juce::jlimit(-1, 11, xml->getIntAttribute("key", -1));
+    s.scale = juce::jlimit(-1, (int) ccp::ScaleType::count - 1, xml->getIntAttribute("scale", -1));
+    s.style = (mc::Style) clampEnum("style", (int) mc::Style::count, 0);
+    s.vibe = (mc::Vibe) clampEnum("vibe", (int) mc::Vibe::count, 1);
+    s.feel = (mc::Feel) clampEnum("feel", (int) mc::Feel::count, 0);
+    s.role = (mc::Role) clampEnum("role", (int) mc::Role::count, 0);
+    s.density = (mc::Density) clampEnum("density", (int) mc::Density::count, 1);
+    s.range = (mc::Range) clampEnum("range", (int) mc::Range::count, 1);
+    s.bars = xml->getIntAttribute("bars", 4);
+    if (s.bars != 2 && s.bars != 4 && s.bars != 8) s.bars = 4;
+    bpm = juce::jlimit(60, 180, xml->getIntAttribute("bpm", 120)); preset = clampEnum("preset", Synth::presetCount, 0);
+    bassLevel = (float) xml->getDoubleAttribute("bassLevel", 0.7); melodyLevel = (float) xml->getDoubleAttribute("melodyLevel", 0.8);
     syncToHost = xml->getBoolAttribute("sync", true); midiOut = xml->getBoolAttribute("midiOut", true);
-    auto inRange = [](int v, int count, int fallback) { return v > 0 && v < count ? v : fallback; };
-    if ((int) s.style < 0 || s.style >= mc::Style::count) s.style = mc::Style::automatic;
-    if ((int) s.vibe < 0 || s.vibe >= mc::Vibe::count) s.vibe = mc::Vibe::automatic;
     mc::Pattern p;
     p.settings = s;
-    p.style = (mc::Style) inRange(xml->getIntAttribute("resolvedStyle"), (int) mc::Style::count, s.style == mc::Style::automatic ? (int) mc::Style::pop : (int) s.style);
-    p.vibe = (mc::Vibe) inRange(xml->getIntAttribute("resolvedVibe"), (int) mc::Vibe::count, s.vibe == mc::Vibe::automatic ? (int) mc::Vibe::chill : (int) s.vibe);
-    p.progression.settings = mc::harmonySettings(p.style, p.vibe, s);
+    p.style = (mc::Style) juce::jlimit(1, (int) mc::Style::count - 1, xml->getIntAttribute("resolvedStyle", 2));
+    p.key = juce::jlimit(0, 11, xml->getIntAttribute("resolvedKey", 9));
+    p.scale = (ccp::ScaleType) clampEnum("resolvedScale", (int) ccp::ScaleType::count, 1);
+    p.progression.settings = mc::harmonySettings(p.style, p.key, p.scale);
     int count = 0;
     const ccp::Chord* prev = nullptr;
     for (auto* x : xml->getChildWithTagNameIterator("chord")) {
@@ -255,8 +259,7 @@ void MelodyCodeProcessor::setStateInformation(const void* data, int size) {
     p.progression.chordCount = count;
     for (int t = 0; t < 2; ++t)
         for (auto* x : xml->getChildWithTagNameIterator(t ? "bass" : "note"))
-            (t ? p.bass : p.melody).push_back({ x->getIntAttribute("start"), x->getIntAttribute("length"), x->getIntAttribute("pitch"),
-                                                x->getIntAttribute("velocity", 100), x->getBoolAttribute("glide") });
+            (t ? p.bass : p.melody).push_back({ x->getIntAttribute("start"), x->getIntAttribute("length"), x->getIntAttribute("pitch"), x->getIntAttribute("velocity", 100) });
     publish(std::move(p));
 }
 

@@ -1,30 +1,28 @@
 # Melody Code
 
-Plugin da Audio Makers que gera **sub-bass e melodia** no tom escolhido. É o irmão do Chord Code: usa o mesmo motor de harmonia (progressões por estilo e vibe, anti-repetição), escreve uma linha de sub em cima dos acordes e compõe a melodia por cima dos dois.
+Plugin da Audio Makers que gera **melodia com uma linha grave** no tom escolhido. É o irmão do Chord Code: usa o mesmo motor de harmonia por baixo, mas aqui os acordes são gerados para o loop inteiro (não se escolhe acorde por compasso). A linha grave é tocada pelo mesmo timbre da melodia, uma ou duas oitavas abaixo; não existe sub-bass separado.
 
 Formatos: **Standalone** (Windows `.exe` portátil, sem instalação), **VST3** e **AU** (macOS).
 
-### Instalar o VST3 no Windows
+### Instalar no Windows
 
-Descompacte `Release/Windows/Melody Code 1.1.0 VST3.zip` e copie a pasta `Melody Code.vst3` para `C:\Program Files\Common Files\VST3`. Depois peça para a DAW reescanear os plugins. Com a DAW tocando, o Melody Code segue o tempo e o compasso dela, e manda a melodia (canal 1) e o sub (canal 2) como MIDI para gravar ou tocar outro instrumento.
+Rode `Release/Windows/Melody Code 1.3.0 Instalador.exe` (gerado pelo GitHub Actions). Ele instala o Standalone e o VST3 em `C:\Program Files\Common Files`. Com a DAW tocando, o Melody Code segue o tempo dela e manda a melodia (canal 1) e o grave (canal 2) como MIDI.
 
 ## Como funciona o motor
 
-1. **Acordes** — `ccp::ProgressionGenerator` (o mesmo código do Chord Code, em `Source/Core/Music.*`) gera um acorde por compasso a partir de Tom, Escala, Style e Vibe. Dá pra trocar o acorde de qualquer compasso pelo seletor no topo do piano roll.
-2. **Style e Vibe PADRÃO** — deixando em PADRÃO, o motor escolhe o estilo e a vibe que achar melhor a cada GERAR (o topo mostra a escolha, ex. `PADRÃO → JAZZ`). Estilos: Funk BR, Pop, Trap, Phonk, Drill, Bossa Nova, Jazz, R&B, Reggaeton, House e Lo-fi. A Vibe (Dark, Happy, Sad, Hypnotic, Epic, Chill, Romantic) não mexe nas notas: muda o caráter do som (brilho, reverb, delay, detune, saturação, camada de oitava, tape wobble).
-   Acordes simples (tríades e sétimas comuns) com duração variada por estilo: acorde segurado por 2 compassos, troca atrasada (6+2), antecipação de 1/16. Sons: KEYS, BELLS, PAD, PLUCK, SYNTH, MALLET.
-3. **Sub** — cada Style tem padrões de sub (tamborzão no Funk BR, 808 com glide no Trap, baião no Piseiro, off-beat no House…). O sub toca a fundamental de cada acorde (E1–D#2), com oitava, quinta e nota de aproximação para o próximo acorde.
-4. **Melodia** — forma de frase do estilo (AABA, ABAC, AAAB…): o motivo volta em sequência sobre o novo acorde, a seção C sobe para o clímax, o meio da frase descansa na 3ª/5ª e o fim resolve na tônica. Notas do acorde nos tempos fortes, passagem nos fracos, salto seguido de passo contrário. Cada estilo tem um perfil (células rítmicas com tercinas, swing de colcheia no jazz e de semicolcheia no funk/lo-fi, antecipações, staccato, aproximação cromática, glide). O motor escreve 32 candidatas, pontua (consonância nos tempos fortes, sensível resolvendo, um só clímax, extensão, final na tônica) e fica com a melhor que não tenha saído recentemente.
-5. **Notas sobrepostas** — quando soa bem e combina com o estilo: segunda voz em terças (sertanejo, piseiro, pagode), sextas (R&B), shell voicings (jazz, bossa, lo-fi), oitavas (phonk, house, funk), nota pedal (trap, drill), notas ligadas que soam por cima da próxima só em intervalos consonantes, e apojaturas (pagode, jazz, R&B).
+1. **Tom e Escala** — escolha os dois ou deixe em PADRÃO: o motor sorteia o tom e escolhe uma escala que combine com o estilo (o topo mostra a escolha, ex. `PADRÃO → F MENOR NATURAL`).
+2. **Acordes** — `ccp::ProgressionGenerator` (código do Chord Code) gera tríades e sétimas simples, com duração variada (acorde segurado, troca adiantada ou atrasada).
+3. **Grave** — padrões rítmicos por estilo, com a fundamental entre E2 e D#3, oitava, quinta e nota de aproximação.
+4. **Melodia como um produtor** — pergunta e resposta: uma célula rítmica forte (a "pergunta") termina aberta; a resposta ecoa o começo e fecha num tom do acorde; a pergunta volta ajustada ao novo acorde e a frase final resolve na tônica. Contorno com um só clímax, notas do acorde nos tempos fortes, pentatônica nos fracos, salto seguido de passo contrário. O motor escreve 40 candidatas, pontua e fica com a melhor que não saiu recentemente.
+5. **Feel** — STRAIGHT, SWING ou TRIPLET (células em tercina).
+6. **Vibe** (só som): CLEAN, DREAMY (chorus, camada de oitava, reverb longo), DARK (filtrado, saturação leve, reverb escuro), LO-FI TAPE (fita: wow, bit reduction, filtros) e SPACE (delay ping-pong e reverb enorme). Sons: KEYS, BELLS, PAD, PLUCK, LEAD, MALLET. Saída com limitador suave, sem clip.
 
 ## Tela
 
-- **Tom, Escala, Style, Vibe, Sound** no topo, e a **engrenagem** abre as configurações (sincronizar com a DAW, BPM, enviar MIDI).
-- **Piano roll** editável: clique cria nota, arrastar move, puxar a ponta alonga, duplo clique / botão direito / Delete apaga, ↑↓ muda a nota (Shift = oitava). O sub aparece em ghost na faixa SUB.
-- **Cadeado por compasso**: trava acorde, sub e melodia daquele compasso no próximo GERAR.
-- **Role** (Lead, Hook, Counter), **Density**, **Range**, **Bars** (2, 4, 8), **BPM**, volume do **Sub** e da **Melody**.
-- **GERAR** (tudo), **NOVA MELODIA** (mantém acordes e sub), **NOVO SUB**, **VARIAÇÃO**, **HISTÓRICO**.
-- **ARRASTAR MIDI** (arrasta melodia + sub direto pra DAW) e **SALVAR MIDI** (dois arquivos: `- Melody.mid` e `- Sub.mid`).
+- **Tom, Escala, Style, Vibe, Sound** no topo; a **engrenagem** abre as configurações (sincronizar com a DAW, BPM, enviar MIDI).
+- **Piano roll** editável, com os acordes gerados mostrados onde começam e o grave na faixa BASS.
+- **Role**, **Feel**, **Density**, **Range**, **Bars** (2, 4, 8), **BPM**, volume do **Bass** e da **Melody**.
+- **GERAR**, **NOVA MELODIA** (mantém acordes e grave), **VARIAÇÃO**, **HISTÓRICO**, **ARRASTAR MIDI** e **SALVAR MIDI** (`- Melody.mid` e `- Bass.mid`).
 
 ## Compilar
 

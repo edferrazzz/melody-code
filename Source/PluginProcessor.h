@@ -31,14 +31,10 @@ public:
     mc::Settings& settings() { return current; }
     void generateAll();
     void newMelody();
-    void newBass();
     void variation();
-    void setChord(int bar, const ccp::Chord&);
     void setMelody(std::vector<mc::Note>);
-    void applySettings();
-    void setVibe(mc::Vibe);     // only changes the sound, the notes stay       // key/scale/style/vibe/bars changed: regenerate unlocked bars
-    void toggleLock(int bar) { locks[(size_t) bar] = !locks[(size_t) bar]; sendChangeMessage(); }
-    bool isLocked(int bar) const { return locks[(size_t) bar]; }
+    void applySettings();       // key/scale/style/bars changed: generate again
+    void setVibe(mc::Vibe);     // only changes the sound, the notes stay
     int historySize() const { return (int) history.size(); }
     juce::String historyLabel(int) const;
     void restoreHistory(int);
@@ -52,13 +48,12 @@ public:
 
     int bpm { 120 };
     std::atomic<bool> syncToHost { true };   // follow the DAW transport and tempo
-    std::atomic<bool> midiOut { true };      // also send the notes out as MIDI (melody ch 1, sub ch 2)
+    std::atomic<bool> midiOut { true };      // also send the notes out as MIDI (melody ch 1, bass ch 2)
     int preset { 0 };
-    float subLevel { 0.8f }, melodyLevel { 0.8f };
+    float bassLevel { 0.7f }, melodyLevel { 0.8f };
 
 private:
     void publish(mc::Pattern, bool addHistory = true);
-    std::array<bool, mc::maxBars> lockArray() const;
 
     mc::Engine engine;
     mc::Settings current;
@@ -67,7 +62,6 @@ private:
     juce::SpinLock patternLock;
     std::atomic<bool> resetPosition { false };
     std::vector<mc::Pattern> history;
-    std::array<bool, mc::maxBars> locks {};
 
     Synth synth;
     double sr { 44100.0 };
@@ -76,7 +70,7 @@ private:
     double position {};
     std::atomic<int> pendingAudition { -1 };
     std::atomic<bool> hostPlaying { false };
-    std::atomic<int> soundVibe { (int) mc::Vibe::chill };
+    std::atomic<int> soundVibe { (int) mc::Vibe::dreamy };
     bool wasRunning {};
     struct Off { int pitch, channel; double samplesLeft; };
     std::vector<Off> midiOffs;
