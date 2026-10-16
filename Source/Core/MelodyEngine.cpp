@@ -41,24 +41,24 @@ struct Profile {
 using S = ccp::ScaleType;
 const Profile& profile(Style s) {
     static const std::map<Style, Profile> table {
-        { Style::funkBR, { ccp::Style::funkBrasileiro, .45, .7, 3, 10, .9, .0, .15, false, false, .1, .05, 0, Texture::octaves, .15,
-            { S::naturalMinor, S::phrygian, S::harmonicMinor },
+        { Style::funkBR, { ccp::Style::funkBrasileiro, .45, .8, 3, 5, .9, .0, .15, false, false, .1, .05, 0, Texture::octaves, .15,
+            { S::naturalMinor, S::phrygian, S::harmonicMinor, S::naturalMinor },
             { {{0,2},{3,1},{6,2},{10,2},{12,3}}, {{0,1},{3,2},{6,1},{8,2},{11,1},{14,2}}, {{0,3},{3,3},{6,2},{10,1},{12,2}}, {{0,1},{2,1},{3,2},{7,1},{10,2},{13,1}} },
             { {{0,3,root},{3,3,root},{6,2,octave},{10,2,root},{12,4,root}}, {{0,6,root},{6,2,octave},{8,6,root},{14,2,approach}} } } },
-        { Style::pop, { ccp::Style::pop, .2, .92, 4, 12, .8, .04, .15, false, false, .3, .06, .12, Texture::thirds, .12,
-            { S::major, S::naturalMinor, S::major, S::mixolydian },
+        { Style::pop, { ccp::Style::pop, .3, .92, 3, 7, .8, .04, .15, false, false, .3, .06, .12, Texture::thirds, .12,
+            { S::naturalMinor, S::harmonicMinor, S::naturalMinor, S::major },
             { {{0,4},{4,2},{6,2},{8,6}}, {{0,2},{2,2},{4,4},{10,2},{12,4}}, {{2,2},{4,2},{6,4},{12,4}}, {{0,2},{2,2},{4,2},{6,2},{8,8}}, {{2,2},{4,2},{6,2},{8,2},{10,6}} },
             { {{0,8,root},{8,6,root},{14,2,approach}}, {{0,6,root},{6,2,fifth},{8,8,root}}, {{0,4,root},{4,4,root},{8,4,root},{12,4,octave}} } } },
-        { Style::trap, { ccp::Style::trap, .35, .88, 4, 12, .85, .06, .12, false, false, .1, .05, .12, Texture::pedal, .2,
+        { Style::trap, { ccp::Style::trap, .35, .9, 3, 6, .85, .06, .12, false, false, .1, .05, .12, Texture::pedal, .2,
             { S::naturalMinor, S::harmonicMinor, S::phrygian },
             { {{0,3},{3,3},{6,2},{8,3},{11,3},{14,2}}, {{0,3},{3,3},{6,4},{12,4}}, {{0,6},{6,6},{12,4}}, {{0,1},{1,1},{2,2},{6,2},{8,1},{9,1},{10,4}}, {{0,2},{3,3},{8,1},{9,1},{10,2},{12,4}} },
             { {{0,10,root},{10,6,root}}, {{0,6,root},{6,2,root},{8,8,root}}, {{0,3,root},{3,5,root},{11,5,octave}} } } },
-        { Style::phonk, { ccp::Style::phonk, .4, .7, 4, 10, .8, .05, .2, false, false, .05, 0, 0, Texture::octaves, .3,
+        { Style::phonk, { ccp::Style::phonk, .4, .75, 3, 6, .8, .05, .2, false, false, .05, 0, 0, Texture::octaves, .3,
             { S::phrygian, S::naturalMinor },
             { {{0,2},{2,2},{4,1},{6,2},{8,2},{10,2},{12,4}}, {{0,3},{3,3},{6,2},{8,3},{11,3},{14,2}}, {{0,1},{1,1},{2,2},{4,1},{5,1},{6,2},{8,2},{10,2},{12,2},{14,2}} },
             { {{0,4,root},{6,2,root},{8,4,root},{14,2,octave}}, {{0,3,root},{3,3,root},{6,10,root}} } } },
-        { Style::drill, { ccp::Style::trap, .3, .85, 5, 12, .75, .1, .1, false, false, .15, .1, .1, Texture::pedal, .2,
-            { S::harmonicMinor, S::naturalMinor },
+        { Style::drill, { ccp::Style::trap, .3, .85, 3, 7, .75, .1, .1, false, false, .15, .1, .1, Texture::pedal, .2,
+            { S::harmonicMinor, S::phrygian, S::naturalMinor },
             { {{0,3},{3,1},{4,4},{10,2},{12,4}}, {{0,2},{3,2},{6,2},{10,2},{12,4}}, {{0,3},{3,3},{8,3},{11,5}} },
             { {{0,3,root},{3,3,root},{6,4,octave},{11,5,root}}, {{0,6,root},{6,4,root},{10,6,octave}} } } },
         { Style::bossaNova, { ccp::Style::jazz, .12, 1.0, 5, 14, .55, .15, .2, true, false, .4, .1, .25, Texture::shell, .3,
@@ -69,19 +69,19 @@ const Profile& profile(Style s) {
             { S::major, S::dorian, S::melodicMinor },
             { {{0,2},{2,2},{4,2},{6,2},{8,2},{10,2},{12,4}}, {{2,2},{4,2},{6,4},{10,2},{12,2},{14,2}}, {{0,6},{6,2},{8,2},{10,2},{12,4}}, {{2,2},{4,2},{6,2},{8,4},{12,4}} },
             { {{0,4,root},{4,4,third},{8,4,fifth},{12,4,approach}}, {{0,4,root},{4,4,fifth},{8,4,octave},{12,4,approach}} } } },
-        { Style::rnb, { ccp::Style::rnb, .12, 1.0, 5, 14, .7, .25, .2, true, false, .25, .3, .3, Texture::sixths, .2,
+        { Style::rnb, { ccp::Style::rnb, .12, 1.0, 4, 9, .7, .25, .2, true, false, .25, .3, .3, Texture::sixths, .2,
             { S::dorian, S::naturalMinor, S::major },
             { {{0,3},{3,1},{4,4},{10,2},{12,4}}, {{1,2},{3,3},{8,3},{12,4}}, {{0,1},{1,1},{2,4},{7,1},{8,6}}, {{0,4},{6,2},{8,2},{10,6}} },
             { {{0,10,root},{10,2,fifth},{12,4,approach}}, {{0,6,root},{7,3,root},{12,4,octave}} } } },
-        { Style::reggaeton, { ccp::Style::latin, .3, .8, 4, 12, .85, .05, .2, false, false, .2, .1, .05, Texture::thirds, .2,
+        { Style::reggaeton, { ccp::Style::latin, .3, .8, 3, 7, .85, .05, .2, false, false, .2, .1, .05, Texture::thirds, .2,
             { S::naturalMinor, S::harmonicMinor, S::major },
             { {{0,3},{3,3},{6,2},{8,3},{11,3},{14,2}}, {{0,2},{3,1},{4,4},{8,2},{11,1},{12,4}}, {{3,3},{6,2},{11,3},{14,2}} },
             { {{0,3,root},{3,3,root},{6,2,octave},{8,3,root},{11,3,root},{14,2,octave}} } } },
-        { Style::house, { ccp::Style::house, .45, .75, 3, 10, .85, 0, .2, true, false, .1, 0, .05, Texture::octaves, .25,
+        { Style::house, { ccp::Style::house, .45, .75, 3, 7, .85, 0, .2, true, false, .1, 0, .05, Texture::octaves, .25,
             { S::dorian, S::naturalMinor, S::major },
             { {{2,2},{6,2},{10,2},{14,2}}, {{0,2},{2,2},{6,4},{10,2},{12,2}}, {{2,1},{4,2},{6,1},{10,1},{12,2},{14,1}} },
             { {{2,2,root},{6,2,root},{10,2,root},{14,2,octave}}, {{0,2,root},{3,3,root},{8,2,root},{11,5,root}} } } },
-        { Style::loFi, { ccp::Style::loFi, .12, 1.0, 4, 12, .7, .2, .25, true, true, .2, .1, .35, Texture::shell, .2,
+        { Style::loFi, { ccp::Style::loFi, .12, 1.0, 3, 8, .7, .2, .25, true, true, .2, .1, .35, Texture::shell, .2,
             { S::major, S::dorian, S::naturalMinor },
             { {{0,6},{8,2},{10,6}}, {{2,4},{8,4},{13,3}}, {{0,3},{4,2},{6,6}}, {{0,2},{2,2},{4,4},{10,6}} },
             { {{0,12,root},{12,4,approach}}, {{0,7,root},{8,8,fifth}} } } },
@@ -242,7 +242,149 @@ void Engine::shapeHarmony(Pattern& p) {
    - Pitches: chord tones on the beats, the pentatonic in between (the notes that "sing"), stepwise motion with
      repeated notes, a leap is answered by a step back, and a contour (arch, rise, fall, wave) per call.
    Many candidates are written and scored (see score); the best one that has not come out recently wins. */
+/* Motif engine, modelled on the reference loops Ed sent (funk "maladeza espacial", trap/pop songstarters):
+   - the line lives in a tiny cluster of 3-4 neighbouring scale notes (often within 3-5 semitones)
+   - a 1- or 2-bar motif repeats almost unchanged: the repetition is the hook
+   - only the end of each 4-bar phrase changes: a turnaround (octave flick, drop below, or a held note)
+   - dark colour: chromatic passing notes between whole steps, phrygian / harmonic minor scales
+   - the last note lands on the tonic and rings. */
+std::vector<Note> Engine::motifAttempt(const Pattern& pat) {
+    const auto& s = pat.settings;
+    const auto& st = profile(pat.style);
+    const auto scale = ccp::HarmonyEngine::scaleNotes(pat.key, pat.scale);
+    const std::vector<int> scalePcs(scale.begin(), scale.end());
+    const bool counter = s.role == Role::counter, hook = s.role == Role::hook;
+    const int center = (s.range == Range::low ? 58 : s.range == Range::high ? 74 : 66) - (counter ? 5 : 0);
+    std::vector<int> pool;
+    for (int m = center - 14; m <= center + 16; ++m) if (has(scalePcs, wrap12(m))) pool.push_back(m);
+    const int lo = 0, hi = (int) pool.size() - 1;
+    auto pc = [&](int i) { return wrap12(pool[(size_t) std::clamp(i, lo, hi)]); };
+    auto chordTones = [&](int tick) { auto pcs = chordPitchClasses(pat.chordAt(tick)); if (pcs.size() > 3) pcs.resize(3); return pcs; };
+    auto nearestTo = [&](const std::vector<int>& pcs, int from) {
+        for (int d = 0; d <= 7; ++d) for (int sg : { 1, -1 }) { const int i = from + sg * d; if (i >= lo && i <= hi && has(pcs, pc(i))) return i; }
+        return std::clamp(from, lo, hi);
+    };
+
+    // anchor: a chord tone of the first chord near the centre; the cluster is anchor-1 .. anchor+width
+    int anchor = (int) (std::lower_bound(pool.begin(), pool.end(), center) - pool.begin());
+    anchor = nearestTo(chordTones(0), anchor + dice(rng, -1, 1));
+    const int width = st.span <= 5 ? 2 : st.span <= 7 ? 3 : 4;   // scale steps above the anchor
+    const int cLo = std::max(lo, anchor - 1), cHi = std::min(hi, anchor + width);
+
+    // rhythm: one or two bars of cells
+    const auto& cellPool = s.feel == Feel::triplet ? tripletCells() : st.cells;
+    auto thin = [&](std::vector<Cell> c) {
+        const Density d = counter ? Density::low : s.density;
+        if (d == Density::low && c.size() > 3) {
+            std::vector<Cell> o;
+            for (size_t i = 0; i < c.size(); ++i) if (i % 2 == 0 || i + 1 == c.size()) o.push_back(c[i]);
+            for (size_t i = 0; i + 1 < o.size(); ++i) o[i].len = o[i + 1].on - o[i].on;
+            return o;
+        }
+        if (d == Density::high) {
+            std::vector<Cell> o;
+            for (auto x : c) if (x.len >= 2 && chance(rng) < .45) { o.push_back({ x.on, x.len / 2 }); o.push_back({ x.on + x.len / 2, x.len / 2 }); } else o.push_back(x);
+            return o;
+        }
+        return c;
+    };
+    const int motifBars = hook || pat.bars() < 2 ? 1 : (chance(rng) < .55 ? 2 : 1);
+    std::vector<std::vector<Cell>> motifCells;
+    motifCells.push_back(thin(pick(rng, cellPool)));
+    if (motifBars == 2) motifCells.push_back(chance(rng) < .4 ? motifCells[0] : thin(pick(rng, cellPool)));
+
+    // pitches: a small walk inside the cluster that keeps coming back to the anchor
+    std::vector<std::vector<int>> motifIdx;
+    const int shape = dice(rng, 0, 3);   // 0 neighbour above, 1 neighbour below, 2 climb and fall, 3 pendulum
+    for (int mb = 0; mb < motifBars; ++mb) {
+        std::vector<int> idx;
+        int cur = mb == 0 ? anchor : motifIdx[0].back();
+        const auto& cells = motifCells[(size_t) mb];
+        for (size_t i = 0; i < cells.size(); ++i) {
+            const double ph = cells[i].on / 16.0;
+            int target;
+            switch (shape) {
+                case 0:  target = anchor + (i % 3 == 1 ? 1 : i % 3 == 2 ? 2 : 0); break;
+                case 1:  target = anchor + (i % 2 ? -1 : (i % 4 == 2 ? 1 : 0)); break;
+                case 2:  target = anchor + (int) std::round(width * std::sin(ph * 3.14159)); break;
+                default: target = anchor + (i % 2 ? width : 0) - (i % 4 == 3 ? 1 : 0); break;
+            }
+            if (mb == 1) target += (i < cells.size() / 2 ? 1 : 0);                   // second bar answers a step higher, then returns
+            if (i > 0 && std::fmod(cells[i].on, 4.0) > .01 && chance(rng) < st.rep) target = cur;   // repeated note
+            if (chance(rng) < .15) target += chance(rng) < .5 ? 1 : -1;               // a little life
+            cur = std::clamp(target, cLo, cHi);
+            idx.push_back(cur);
+        }
+        motifIdx.push_back(idx);
+    }
+
+    const bool dark = pat.style == Style::funkBR || pat.style == Style::trap || pat.style == Style::phonk || pat.style == Style::drill
+                   || pat.scale == ccp::ScaleType::phrygian || pat.scale == ccp::ScaleType::harmonicMinor;
+    const int bars = pat.bars(), tonic = wrap12(pat.key);
+    const int turnType = dice(rng, 0, 2);   // 0 octave flick, 1 drop below, 2 held note
+    std::vector<Note> out;
+    for (int b = 0; b < bars; ++b) {
+        const int mb = b % motifBars;
+        auto cells = motifCells[(size_t) mb];
+        auto idx = motifIdx[(size_t) mb];
+        const bool last = b == bars - 1;
+        const bool phraseEnd = !last && (b % 4 == 3) && bars >= 4;
+        // only fix strong-beat clashes with the chord (a semitone rub), keep the motif otherwise
+        for (size_t i = 0; i < cells.size(); ++i) {
+            const int tick = b * barTicks + ticks(cells[i].on);
+            if (std::fmod(cells[i].on, 8.0) > .01) continue;
+            const auto ct = chordTones(tick);
+            bool clash = false;
+            for (int c : ct) if (wrap12(pc(idx[i]) - c) == 1 || wrap12(c - pc(idx[i])) == 1) clash = !has(ct, pc(idx[i]));
+            if (clash) idx[i] = nearestTo(ct, idx[i]);
+        }
+        if (phraseEnd || last) {
+            // turnaround on the second half of the bar
+            std::vector<Cell> keep; std::vector<int> keepIdx;
+            for (size_t i = 0; i < cells.size(); ++i) if (cells[i].on < 8) { keep.push_back(cells[i]); keepIdx.push_back(idx[i]); }
+            if (keep.empty()) { keep.push_back({ 0, 4 }); keepIdx.push_back(anchor); }
+            cells = keep; idx = keepIdx;
+            if (last) {
+                const int t = nearestTo({ tonic }, idx.back());
+                cells.push_back({ 8, 8 }); idx.push_back(t);
+            } else if (turnType == 0) {
+                cells.push_back({ 8, 2 }); idx.push_back(idx.back() + 7);              // octave flick (7 scale steps)
+                cells.push_back({ 10, 2 }); idx.push_back(idx.back() - 1);
+                cells.push_back({ 12, 4 }); idx.push_back(anchor);
+            } else if (turnType == 1) {
+                cells.push_back({ 8, 2 }); idx.push_back(anchor - 1);
+                cells.push_back({ 10, 2 }); idx.push_back(anchor - 2);
+                cells.push_back({ 12, 4 }); idx.push_back(anchor - 1);
+            } else {
+                cells.push_back({ 8, 8 }); idx.push_back(nearestTo(chordTones(b * barTicks + 8 * step), anchor + 1));
+            }
+            for (size_t i = 0; i + 1 < cells.size(); ++i) cells[i].len = std::min(cells[i].len, cells[i + 1].on - cells[i].on);
+        }
+        for (size_t i = 0; i < cells.size(); ++i) {
+            const int start = b * barTicks + ticks(cells[i].on);
+            const bool ring = i + 1 == cells.size() && (last || phraseEnd);
+            const int len = std::max(step / 2, (int) (ticks(cells[i].len) * (ring ? 1.0 : st.stac)) - step / 10);
+            const double o = cells[i].on;
+            const int vel = (std::fmod(o, 4.0) < .01 ? 104 : std::fmod(o, 2.0) < .01 ? 92 : 84) + dice(rng, -6, 6);
+            const int pitch = pool[(size_t) std::clamp(idx[i], lo, hi)];
+            // chromatic passing note between two notes a whole step apart (the "dark" slide-like colour)
+            if (dark && i + 1 < cells.size() && cells[i].len >= 2 && chance(rng) < .3) {
+                const int nx = pool[(size_t) std::clamp(idx[i + 1], lo, hi)];
+                if (std::abs(nx - pitch) == 2) {
+                    out.push_back({ start, std::max(step / 2, len - step), pitch, vel });
+                    out.push_back({ start + ticks(cells[i].len) - step, step - step / 8, (pitch + nx) / 2, vel - 14 });
+                    continue;
+                }
+            }
+            out.push_back({ start, len, pitch, vel });
+        }
+    }
+    std::sort(out.begin(), out.end(), [](const Note& a, const Note& b) { return a.start < b.start; });
+    return out;
+}
+
 std::vector<Note> Engine::melodyAttempt(const Pattern& pat) {
+    if (pat.style != Style::jazz && pat.style != Style::bossaNova) return motifAttempt(pat);
     const auto& s = pat.settings;
     const auto& st = profile(pat.style);
     const auto scale = ccp::HarmonyEngine::scaleNotes(pat.key, pat.scale);
@@ -463,8 +605,20 @@ double Engine::score(const Pattern& pat, const std::vector<Note>& m) {
     sc += 1.5 * gapFills;
     sc -= 2.5 * leaps + 4.0 * bigLeaps + (repeatsOk ? 0.5 : 1.5) * runs + 1.5 * longSameDir;
     const int range = hi - lo;
-    sc += range >= 5 && range <= 15 ? 3 : -2;
-    sc += distinct.size() >= 4 ? 2 : -3;
+    const bool motif = pat.style != Style::jazz && pat.style != Style::bossaNova;
+    if (motif) {
+        // the references sit in a small range (3-9 semitones without the flicks) and repeat themselves
+        sc += range <= 9 ? 3 : range <= 14 ? 0 : -3;
+        sc += distinct.size() >= 3 ? 1 : -3;
+        std::vector<std::vector<int>> bars(16);
+        for (auto& n : m) bars[(size_t) std::min(15, barOf(n.start))].push_back(n.pitch * 10000 + n.start % barTicks);
+        int same = 0;
+        for (int b = 1; b < 16; ++b) if (!bars[(size_t) b].empty() && (bars[(size_t) b] == bars[(size_t) b - 1] || (b >= 2 && bars[(size_t) b] == bars[(size_t) b - 2]))) ++same;
+        sc += 1.5 * same;
+    } else {
+        sc += range >= 5 && range <= 15 ? 3 : -2;
+        sc += distinct.size() >= 4 ? 2 : -3;
+    }
     int climaxBars = 0, prevBar = -1;
     for (auto& n : m) if (n.pitch == hi && barOf(n.start) != prevBar) { ++climaxBars; prevBar = barOf(n.start); }
     if (climaxBars == 1) sc += 2;

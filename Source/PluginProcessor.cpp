@@ -12,10 +12,10 @@ Synth::Fx fxFor(mc::Vibe v) {
     Synth::Fx f;
     switch (v) {
         case mc::Vibe::clean:   // close and clear: a small room, a light echo
-            f.lowpass = 16000; f.chorus = 0.15f; f.delayMix = 0.08f; f.delayBeats = 0.75f; f.delayFeedback = 0.25f;
+            f.lowpass = 8000; f.chorus = 0.15f; f.delayMix = 0.08f; f.delayBeats = 0.75f; f.delayFeedback = 0.25f;
             f.reverbMix = 0.18f; f.reverbTime = 1.1f; f.reverbDamp = 0.35f; f.preDelayMs = 8; break;
         case mc::Vibe::dreamy:  // wide and soft: chorus, shimmer, a long bright hall
-            f.lowpass = 11000; f.chorus = 0.55f; f.octaveUp = 0.35f; f.delayMix = 0.18f; f.delayBeats = 0.75f; f.delayFeedback = 0.4f;
+            f.lowpass = 6500; f.chorus = 0.55f; f.octaveUp = 0.35f; f.delayMix = 0.18f; f.delayBeats = 0.75f; f.delayFeedback = 0.4f;
             f.reverbMix = 0.45f; f.reverbTime = 4.0f; f.reverbDamp = 0.25f; f.preDelayMs = 30; break;
         case mc::Vibe::dark:    // filtered and heavy: low-pass, warm drive, a dark long space
             f.lowpass = 2600; f.highpass = 40; f.drive = 0.35f; f.chorus = 0.2f; f.delayMix = 0.14f; f.delayBeats = 1.0f; f.delayFeedback = 0.35f;
@@ -24,7 +24,7 @@ Synth::Fx fxFor(mc::Vibe v) {
             f.lowpass = 4800; f.highpass = 160; f.drive = 0.3f; f.tape = 0.7f; f.chorus = 0.1f; f.delayMix = 0.1f; f.delayBeats = 0.5f; f.delayFeedback = 0.3f;
             f.reverbMix = 0.22f; f.reverbTime = 1.8f; f.reverbDamp = 0.6f; f.preDelayMs = 12; break;
         case mc::Vibe::space:   // huge: ping-pong echoes and a very long reverb
-            f.lowpass = 13000; f.chorus = 0.35f; f.octaveUp = 0.15f; f.delayMix = 0.34f; f.delayBeats = 0.75f; f.delayFeedback = 0.5f;
+            f.lowpass = 7000; f.chorus = 0.35f; f.octaveUp = 0.15f; f.delayMix = 0.34f; f.delayBeats = 0.75f; f.delayFeedback = 0.5f;
             f.reverbMix = 0.5f; f.reverbTime = 6.5f; f.reverbDamp = 0.35f; f.preDelayMs = 45; break;
         default: break;
     }

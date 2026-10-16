@@ -91,6 +91,7 @@ private:
     void shapeHarmony(Pattern&);
     std::vector<Note> melodyFor(const Pattern&);
     std::vector<Note> melodyAttempt(const Pattern&);
+    std::vector<Note> motifAttempt(const Pattern&);
     uint64_t signature(const std::vector<Note>&) const;
     std::mt19937 rng;
     ccp::ProgressionGenerator harmony;
