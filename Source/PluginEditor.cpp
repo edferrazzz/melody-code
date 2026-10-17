@@ -827,7 +827,7 @@ void MelodyCodeEditor::timerCallback() {
 // A changed setting rewrites the pattern right away, unless the user has edited the notes by hand:
 // then the edit is kept and the setting applies to the next GERAR / NOVA MELODIA / VARIAÇÃO.
 void MelodyCodeEditor::refreshAfterSetting(bool harmonyToo) {
-    if (proc.melodyEdited()) { showHint(utf8("Notas editadas mantidas: a mudan\xc3\xa7a vale na pr\xc3\xb3xima gera\xc3\xa7\xc3\xa3o")); return; }
+    if (proc.melodyEdited()) { showHint(utf8("Notas editadas mantidas: a mudan\xc3\xa7" "a vale na pr\xc3\xb3xima gera\xc3\xa7\xc3\xa3o")); return; }
     if (harmonyToo) proc.applySettings(); else proc.newMelody();
 }
 
