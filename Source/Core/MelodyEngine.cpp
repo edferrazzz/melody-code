@@ -721,6 +721,208 @@ std::vector<Note> Engine::melodyFor(const Pattern& pat) {
     return all;
 }
 
+bool usesLibrary(Style s) { return s != Style::jazz && s != Style::bossaNova; }
+
+/* Learned engine. These numbers are statistics measured on a reference set of 40 trap loops (no melody from it is
+   stored): how often each 16th starts a note, how often the idea repeats every 1/2/4/8 bars, which kinds of idea
+   producers use (held top notes over an arpeggio, chord arpeggios, a line against a pedal note, a small cluster)
+   and how the harmony moves (mostly the i chord, one move near the end of the phrase). The engine writes new lines
+   with those habits. */
+namespace learned {
+constexpr double onset[16] { .94, .05, .47, .03, .72, .04, .47, .03, .83, .03, .46, .03, .82, .03, .47, .03 };
+constexpr double period[4] { 2, 12, 15, 11 };          // the idea repeats every 1, 2, 4, 8 bars
+enum Idea { longTop, arpeggio, pedal, cluster, ideaCount };
+constexpr double idea[ideaCount] { 19, 17, 8, 6 };
+// harmony habits over 4 bars, as scale degrees (0 = i)
+const std::vector<std::array<int, 4>> harmony { { 0, 0, 0, 0 }, { 0, 0, 0, 5 }, { 0, 0, 5, 5 }, { 0, 0, 5, 4 }, { 0, 0, 3, 3 }, { 0, 5, 0, 5 },
+                                                { 0, 4, 5, 5 }, { 0, 3, 5, 4 }, { 0, 0, 5, 6 }, { 0, 5, 3, 6 } };
+constexpr double harmonyWeight[10] { 12, 7, 5, 3, 3, 3, 2, 2, 2, 2 };
+}
+
+namespace {
+int weighted(std::mt19937& r, const double* w, int n) {
+    std::discrete_distribution<int> d(w, w + n);
+    return d(r);
+}
+}
+
+bool Engine::fromLibrary(Pattern& out, int seed) {
+    std::mt19937 r((uint32_t) seed);
+    const int bars = out.settings.bars;
+    out.motif = seed;
+    const auto& shape = learned::harmony[(size_t) weighted(r, learned::harmonyWeight, (int) learned::harmony.size())];
+    const auto gs = harmonySettings(out.style, out.key, out.scale);
+    out.progression = ccp::Progression {};
+    out.progression.settings = gs;
+    out.progression.chordCount = bars;
+    const ccp::Chord* prev = nullptr;
+    for (int b = 0; b < bars; ++b) {
+        const int deg = bars == 2 ? shape[(size_t) (b * 3)] : shape[(size_t) (b % 4)];
+        out.progression.chords[(size_t) b] = ccp::HarmonyEngine::buildChord(gs, deg, ccp::ChordKind::triad, prev, b);
+        prev = &out.progression.chords[(size_t) b];
+    }
+    out.chordShift = {};
+    out.bass = bassFor(out);
+    out.melody = libraryMelody(out);
+    return !out.melody.empty();
+}
+
+std::vector<Note> Engine::libraryMelody(const Pattern& pat) {
+    const auto& s = pat.settings;
+    std::mt19937 r((uint32_t) pat.motif * 2654435761u + (uint32_t) s.role * 97 + (uint32_t) s.density * 13 + (uint32_t) s.range);
+    std::uniform_real_distribution<double> U(0, 1);
+    const int bars = pat.bars();
+    const bool hook = s.role == Role::hook, counter = s.role == Role::counter;
+    const auto scale = ccp::HarmonyEngine::scaleNotes(pat.key, pat.scale);
+    const std::vector<int> scalePcs(scale.begin(), scale.end());
+
+    // which idea: the learned weights, nudged by the style's taste
+    double w[learned::ideaCount];
+    for (int i = 0; i < learned::ideaCount; ++i) w[i] = learned::idea[i];
+    if (pat.style == Style::funkBR || pat.style == Style::reggaeton) { w[learned::pedal] *= 3; w[learned::cluster] *= 3; w[learned::longTop] *= .5; }
+    if (pat.style == Style::loFi || pat.style == Style::rnb) { w[learned::longTop] *= 1.5; w[learned::pedal] *= .5; }
+    if (pat.style == Style::phonk || pat.style == Style::drill) { w[learned::pedal] *= 2; w[learned::cluster] *= 2; }
+    const int idea = weighted(r, w, learned::ideaCount);
+    const int periods[4] { 1, 2, 4, 8 };
+    int period = hook ? 1 : periods[weighted(r, learned::period, 4)];
+    period = std::min(period, bars);
+    if (period == bars && bars >= 4) period = bars / 2;    // the idea always comes back at least once
+
+    // rhythm of the idea, bar by bar, from the learned onset odds
+    const double dens = counter ? .55 : s.density == Density::low ? .65 : s.density == Density::high ? 1.35 : 1.0;
+    std::vector<std::vector<int>> rhythm((size_t) period);
+    for (auto& bar : rhythm) {
+        if (idea == learned::pedal || idea == learned::arpeggio) {   // these ideas move in even 8ths
+            for (int p = 0; p < 16; p += 2) if (p == 0 || U(r) < (s.density == Density::low ? .6 : .92)) bar.push_back(p);
+        } else {
+            for (int p = 0; p < 16; ++p) if (p == 0 || U(r) < std::min(.98, learned::onset[p] * dens)) bar.push_back(p);
+        }
+    }
+
+    const int center = (s.range == Range::low ? 62 : s.range == Range::high ? 76 : 69) - (counter ? 7 : 0);
+    auto chordTone = [&](const ccp::Chord& c, int k) {   // k-th chord tone counting up from the root (3 per octave)
+        const auto pcs = chordPitchClasses(c);
+        const int oct = (int) std::floor(k / 3.0), idx = k - oct * 3;
+        int base = center - 12;
+        while (wrap12(base) != wrap12(pcs[0])) ++base;
+        int pitch = base + oct * 12;
+        if (idx > 0) pitch += wrap12(pcs[(size_t) std::min<int>(idx, (int) pcs.size() - 1)] - pcs[0]);
+        return pitch;
+    };
+    auto scaleNear = [&](int m, int steps) { int x = m; const int d = steps > 0 ? 1 : -1; for (int i = 0; i < std::abs(steps); ++i) { x += d; while (!has(scalePcs, wrap12(x))) x += d; } return x; };
+
+    // the idea, in chord-relative terms so it follows the chords when it repeats
+    struct Ev { int pos, len, k, step, vel; bool low; };
+    std::vector<std::vector<Ev>> cell((size_t) period);
+    const int dir = U(r) < .6 ? -1 : 1;                       // arpeggios fall more often than they rise
+    const int topK = 3 + (int) (U(r) * 3);                     // where the line sits among the chord tones
+    const int pedalK = U(r) < .6 ? -1 : 0;                     // pedal: the 5th below or the root
+    int walk = topK;
+    for (int b = 0; b < period; ++b) {
+        const auto& pos = rhythm[(size_t) b];
+        for (size_t i = 0; i < pos.size(); ++i) {
+            const int len = (i + 1 < pos.size() ? pos[i + 1] : 16) - pos[i];
+            const int v = pos[i] % 4 == 0 ? 100 : 86;
+            switch (idea) {
+                case learned::arpeggio:
+                    cell[(size_t) b].push_back({ pos[i], len, topK + dir * (int) (i % 4) - (dir < 0 ? 0 : 3), 0, v, false });
+                    break;
+                case learned::pedal:
+                    if (i % 2 == 1) cell[(size_t) b].push_back({ pos[i], len, pedalK, 0, v - 12, true });
+                    else {
+                        walk += U(r) < .5 ? 0 : (U(r) < .5 ? 1 : -1);
+                        walk = std::clamp(walk, topK - 1, topK + 1);
+                        cell[(size_t) b].push_back({ pos[i], len, walk, 0, v, false });
+                    }
+                    break;
+                case learned::cluster:
+                    cell[(size_t) b].push_back({ pos[i], len, topK, (i % 4 == 1 ? 1 : i % 4 == 3 ? -1 : 0) + (U(r) < .2 ? 1 : 0), v, false });
+                    break;
+                default:   // a held top note with an arpeggio under it
+                    if (pos[i] == 0 || (pos[i] == 8 && U(r) < .5)) cell[(size_t) b].push_back({ pos[i], pos[i] == 0 && U(r) < .5 ? 16 : 8, topK + 1 + (b % 2), 0, v, false });
+                    cell[(size_t) b].push_back({ pos[i], len, topK - 3 - (int) (i % 3), 0, v - 18, true });
+                    break;
+            }
+        }
+    }
+
+    // repeat the idea; one bar near the end answers it with a different top note
+    std::vector<Note> out;
+    for (int b = 0; b < bars; ++b) {
+        const auto& c = pat.progression.chords[(size_t) b];
+        const bool answer = bars >= 4 && b == bars - 1 - (bars >= 8 ? 4 : 0);
+        for (const auto& e : cell[(size_t) (b % period)]) {
+            int pitch = chordTone(c, e.k + (answer && !e.low ? 1 : 0));
+            if (e.step) pitch = scaleNear(pitch, e.step);
+            out.push_back({ (b * 16 + e.pos) * step, std::max(step / 3, e.len * step), pitch, std::clamp(e.vel, 60, 120) });
+        }
+    }
+    if (out.empty()) return {};
+    std::sort(out.begin(), out.end(), [](const Note& a, const Note& b) { return a.start != b.start ? a.start < b.start : a.pitch > b.pitch; });
+
+    // density: low keeps the top voice on 8ths, mid keeps two voices, high keeps everything
+    const Density d = counter ? Density::low : s.density;
+    if (d != Density::high) {
+        std::vector<Note> o;
+        for (size_t i = 0; i < out.size(); ++i) {
+            int sameOnset = 0;
+            for (auto& x : o) if (x.start == out[i].start) ++sameOnset;
+            if (sameOnset >= (d == Density::low ? 1 : 2)) continue;
+            if (d == Density::low && out[i].start % (2 * step) != 0 && out[i].length < 2 * step) continue;
+            o.push_back(out[i]);
+        }
+        out = o;
+    }
+
+    // style rhythm: funk and reggaeton pull straight 8ths into the 3-3-2 (tamborzão / dembow)
+    if (pat.style == Style::funkBR || pat.style == Style::reggaeton) {
+        std::vector<Note> o;
+        for (auto n : out) {
+            const int pos = n.start % (8 * step);
+            const int base = n.start - pos;
+            if (pos == 2 * step) n.start = base + 3 * step;
+            else if (pos == 4 * step) n.start = base + 6 * step;
+            else if (pos == 6 * step) continue;
+            o.push_back(n);
+        }
+        out = o;
+    }
+    // triplet feel: offbeats move onto the triplet grid
+    if (s.feel == Feel::triplet)
+        for (auto& n : out) {
+            const int pos = n.start % ppq, base = n.start - pos;
+            if (pos == 2 * step) n.start = base + 2 * ppq / 3;
+            else if (pos == step) n.start = base + ppq / 3;
+            else if (pos == 3 * step) n.start = base + 2 * ppq / 3;
+        }
+    std::sort(out.begin(), out.end(), [](const Note& a, const Note& b) { return a.start < b.start; });
+
+    // articulation per style
+    const double art = pat.style == Style::funkBR || pat.style == Style::phonk ? .55 : pat.style == Style::loFi || pat.style == Style::rnb ? 1.4 : 1.0;
+    for (size_t i = 0; i < out.size(); ++i) {
+        int next = pat.lengthTicks();
+        for (size_t j = i + 1; j < out.size(); ++j) if (out[j].start > out[i].start) { next = out[j].start; break; }
+        int len = (int) (out[i].length * art);
+        if (art > 1) len = std::max(len, next - out[i].start);
+        out[i].length = std::clamp(len, step / 3, std::max(step / 3, pat.lengthTicks() - out[i].start));
+    }
+
+    // ending: the second half of the last bar resolves to a held tonic
+    if (bars >= 2) {
+        const int cut = pat.lengthTicks() - barTicks / 2;
+        int ref = 0;
+        for (auto& n : out) if (n.start < cut) ref = n.pitch;
+        out.erase(std::remove_if(out.begin(), out.end(), [&](const Note& n) { return n.start >= cut; }), out.end());
+        int tonic = ref; while (wrap12(tonic) != wrap12(pat.key)) --tonic;
+        if (ref - tonic > 6) tonic += 12;
+        for (auto& n : out) n.length = std::min(n.length, std::max(step / 3, cut - n.start + (n.start + n.length > cut ? step : 0)));
+        out.push_back({ cut, barTicks / 2, tonic, 100 });
+    }
+    for (auto& n : out) { while (n.pitch > 93) n.pitch -= 12; while (n.pitch < 43) n.pitch += 12; }   // fold wide layers into a playable range
+    if (pat.style != Style::funkBR && pat.style != Style::reggaeton) applySwing(out, profile(pat.style), s.feel == Feel::swing ? Feel::swing : Feel::straight);
+    return out;
+}
+
 Pattern Engine::generate(const Settings& s) {
     Pattern out;
     out.settings = s;
@@ -728,6 +930,8 @@ Pattern Engine::generate(const Settings& s) {
     const auto& prof = profile(out.style);
     out.key = s.key >= 0 && s.key < 12 ? s.key : dice(rng, 0, 11);
     out.scale = s.scale >= 0 && s.scale < (int) ccp::ScaleType::count ? (ccp::ScaleType) s.scale : pick(rng, prof.scales);
+    if (usesLibrary(out.style) && fromLibrary(out, dice(rng, 1, 1 << 30))) return out;
+    out.motif = -1;
     out.progression = harmony.generate(harmonySettings(out.style, out.key, out.scale), nullptr, {}, s.bars);
     shapeHarmony(out);
     out.bass = bassFor(out);
@@ -739,6 +943,12 @@ Pattern Engine::newMelody(const Pattern& p, const Settings& s) {
     Pattern out = p;
     out.settings.role = s.role; out.settings.density = s.density; out.settings.range = s.range;
     out.settings.feel = s.feel; out.settings.vibe = s.vibe;
+    if (p.motif >= 0) {   // a new idea over the same chords
+        out.motif = dice(rng, 1, 1 << 30);
+        out.melody = libraryMelody(out);
+        if (s.feel != p.settings.feel) out.bass = bassFor(out);
+        return out;
+    }
     out.melody = melodyFor(out);
     if (s.feel != p.settings.feel) out.bass = bassFor(out);
     return out;

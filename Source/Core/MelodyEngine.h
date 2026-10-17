@@ -55,6 +55,7 @@ struct Pattern {
     // Negative = arrives early (anticipation), positive = the previous chord rings longer.
     std::array<int, maxBars> chordShift {};
     std::vector<Note> bass, melody;
+    int motif { -1 };                  // seed of the learned engine's idea, -1 = written by the rule engine
     int bars() const { return progression.chordCount; }
     int lengthTicks() const { return bars() * barTicks; }
     int chordIndexAt(int tick) const {
@@ -92,6 +93,8 @@ private:
     std::vector<Note> melodyFor(const Pattern&);
     std::vector<Note> melodyAttempt(const Pattern&);
     std::vector<Note> motifAttempt(const Pattern&);
+    bool fromLibrary(Pattern&, int templateIndex);
+    std::vector<Note> libraryMelody(const Pattern&);
     uint64_t signature(const std::vector<Note>&) const;
     std::mt19937 rng;
     ccp::ProgressionGenerator harmony;
