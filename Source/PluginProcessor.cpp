@@ -55,6 +55,7 @@ void MelodyCodeProcessor::publish(mc::Pattern p, bool addHistory) {
         const juce::SpinLock::ScopedLockType sl(patternLock);
         audioPattern = std::move(p);
     }
+    edited = false;
     if (addHistory) {
         history.insert(history.begin(), shown);
         if (history.size() > 30) history.pop_back();
@@ -77,6 +78,7 @@ void MelodyCodeProcessor::setMelody(std::vector<mc::Note> notes) {
     auto p = shown;
     p.melody = std::move(notes);
     publish(std::move(p), false);
+    edited = true;
 }
 
 juce::String MelodyCodeProcessor::historyLabel(int i) const {

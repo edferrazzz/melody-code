@@ -730,20 +730,21 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
         s.key = keyBox.getSelectedId() - 2;      // id 1 = PADRÃO (-1)
         s.scale = scaleBox.getSelectedId() - 2;
         s.style = (mc::Style) (styleBox.getSelectedId() - 1);
-        proc.applySettings();
+        refreshAfterSetting(true);
     };
     for (auto* b : { &keyBox, &scaleBox, &styleBox }) { b->onChange = onSetting; content.addAndMakeVisible(b); }
-    vibeBox.onChange = [this] { proc.setVibe((mc::Vibe) (vibeBox.getSelectedId() - 1)); };   // sound only, notes stay
+    // the vibe changes the preview sound now and the phrase character from the next generation (notes on screen stay)
+    vibeBox.onChange = [this] { proc.setVibe((mc::Vibe) (vibeBox.getSelectedId() - 1)); };
     content.addAndMakeVisible(vibeBox);
     soundBox.onChange = [this] { proc.preset = soundBox.getSelectedId() - 1; };
     content.addAndMakeVisible(soundBox);
     content.addAndMakeVisible(roll);
 
-    role.onChange = [this](int i) { proc.settings().role = (mc::Role) i; proc.newMelody(); };
-    density.onChange = [this](int i) { proc.settings().density = (mc::Density) i; proc.newMelody(); };
-    range.onChange = [this](int i) { proc.settings().range = (mc::Range) i; proc.newMelody(); };
-    feel.onChange = [this](int i) { proc.settings().feel = (mc::Feel) i; proc.newMelody(); };
-    bars.onChange = [this](int i) { proc.settings().bars = i == 0 ? 2 : i == 1 ? 4 : 8; proc.applySettings(); };
+    role.onChange = [this](int i) { proc.settings().role = (mc::Role) i; refreshAfterSetting(false); };
+    density.onChange = [this](int i) { proc.settings().density = (mc::Density) i; refreshAfterSetting(false); };
+    range.onChange = [this](int i) { proc.settings().range = (mc::Range) i; refreshAfterSetting(false); };
+    feel.onChange = [this](int i) { proc.settings().feel = (mc::Feel) i; refreshAfterSetting(false); };
+    bars.onChange = [this](int i) { proc.settings().bars = i == 0 ? 2 : i == 1 ? 4 : 8; refreshAfterSetting(true); };
     for (auto* s : { &role, &feel, &density, &range, &bars }) content.addAndMakeVisible(s);
 
     auto setupSlider = [this](juce::Slider& s, double lo, double hi, double v, std::function<void(double)> f) {
@@ -822,6 +823,13 @@ void MelodyCodeEditor::timerCallback() {
     if (hintUntil && juce::Time::getMillisecondCounter() > hintUntil) { hintUntil = 0; hint.clear(); content.repaint(); }
 }
 
+// A changed setting rewrites the pattern right away, unless the user has edited the notes by hand:
+// then the edit is kept and the setting applies to the next GERAR / NOVA MELODIA / VARIAÇÃO.
+void MelodyCodeEditor::refreshAfterSetting(bool harmonyToo) {
+    if (proc.melodyEdited()) { showHint(utf8("Notas editadas mantidas: a mudan\xc3\xa7a vale na pr\xc3\xb3xima gera\xc3\xa7\xc3\xa3o")); return; }
+    if (harmonyToo) proc.applySettings(); else proc.newMelody();
+}
+
 void MelodyCodeEditor::showHint(const juce::String& text) {
     hint = text;
     hintUntil = juce::Time::getMillisecondCounter() + 2500;
@@ -833,7 +841,7 @@ juce::StringArray MelodyCodeEditor::writeMidiFiles(const juce::File& folder, con
     const auto p = proc.pattern();
     juce::StringArray out;
     auto write = [&](const std::vector<mc::Note>& notes, const juce::String& suffix, int channel) {
-        auto bytes = mc::midiBytes(notes, proc.bpm, channel);
+        auto bytes = mc::midiBytes(notes, proc.bpm, channel, p.lengthTicks());
         auto f = folder.getChildFile(base + " - " + suffix + ".mid");
         if (f.replaceWithData(bytes.data(), bytes.size())) out.add(f.getFullPathName());
     };

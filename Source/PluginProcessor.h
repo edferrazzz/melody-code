@@ -34,7 +34,8 @@ public:
     void variation();
     void setMelody(std::vector<mc::Note>);
     void applySettings();       // key/scale/style/bars changed: generate again
-    void setVibe(mc::Vibe);     // only changes the sound, the notes stay
+    void setVibe(mc::Vibe);     // preview sound now, phrase character from the next generation
+    bool melodyEdited() const { return edited; }
     int historySize() const { return (int) history.size(); }
     juce::String historyLabel(int) const;
     void restoreHistory(int);
@@ -50,6 +51,8 @@ public:
     std::atomic<bool> syncToHost { true };   // follow the DAW transport and tempo
     std::atomic<bool> midiOut { true };      // also send the notes out as MIDI (melody ch 1, bass ch 2)
     int preset { 0 };
+    // BASS and MELODY are the preview mix levels of the two layers (low line, main line). They never change notes:
+    // the composition is controlled by Role / Feel / Density / Range, so these stay a balance control.
     float bassLevel { 0.7f }, melodyLevel { 0.8f };
 
 private:
@@ -62,6 +65,7 @@ private:
     juce::SpinLock patternLock;
     std::atomic<bool> resetPosition { false };
     std::vector<mc::Pattern> history;
+    bool edited {};                         // notes changed by hand since the last generation
 
     Synth synth;
     double sr { 44100.0 };

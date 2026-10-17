@@ -55,7 +55,7 @@ struct Pattern {
     // Negative = arrives early (anticipation), positive = the previous chord rings longer.
     std::array<int, maxBars> chordShift {};
     std::vector<Note> bass, melody;
-    int motif { -1 };                  // seed of the learned engine's idea, -1 = written by the rule engine
+    uint32_t seed {};                  // composition seed: same context + seed = same melody
     int bars() const { return progression.chordCount; }
     int lengthTicks() const { return bars() * barTicks; }
     int chordIndexAt(int tick) const {
@@ -84,24 +84,19 @@ public:
 
     static std::vector<int> chordPitchClasses(const ccp::Chord&);
     static int bassRoot(const ccp::Chord&);
-    static double score(const Pattern&, const std::vector<Note>&);
 
 private:
     Style resolveStyle(Style);
     std::vector<Note> bassFor(const Pattern&);
     void shapeHarmony(Pattern&);
-    std::vector<Note> melodyFor(const Pattern&);
-    std::vector<Note> melodyAttempt(const Pattern&);
-    std::vector<Note> motifAttempt(const Pattern&);
-    bool fromLibrary(Pattern&, int templateIndex);
-    std::vector<Note> libraryMelody(const Pattern&);
+    std::vector<Note> melodyFor(Pattern&);
     uint64_t signature(const std::vector<Note>&) const;
     std::mt19937 rng;
     ccp::ProgressionGenerator harmony;
     std::deque<uint64_t> recent;
 };
 
-std::vector<uint8_t> midiBytes(const std::vector<Note>&, int bpm, int channel);
+std::vector<uint8_t> midiBytes(const std::vector<Note>&, int bpm, int channel, int lengthTicks = 0);
 const char* styleName(Style);
 const char* vibeName(Vibe);
 const char* feelName(Feel);

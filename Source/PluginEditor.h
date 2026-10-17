@@ -162,6 +162,7 @@ private:
     void syncControls();
     juce::StringArray writeMidiFiles(const juce::File& folder, const juce::String& base);
     void saveMidi();
+    void refreshAfterSetting(bool harmonyToo);
     void showHint(const juce::String&);
 
     MelodyCodeProcessor& proc;
