@@ -18,7 +18,8 @@ constexpr int maxBars = 8;
 constexpr int autoKey = -1, autoScale = -1;   // "PADRÃO": the engine picks
 
 // "automatic" lets the engine pick the style; the choice is stored in the Pattern.
-enum class Style { automatic, funkBR, pop, trap, phonk, drill, bossaNova, jazz, rnb, reggaeton, house, loFi, count };
+// Each style has its own composition engine (Genres.h).
+enum class Style { automatic, funkBR, pop, trap, rnb, reggaeton, house, afrobeats, count };
 // The vibe is the sound's aesthetic (effects); it never changes the notes.
 enum class Vibe { clean, dreamy, dark, tape, space, count };
 enum class Feel { straight, swing, triplet, count };
@@ -55,6 +56,7 @@ struct Pattern {
     // Negative = arrives early (anticipation), positive = the previous chord rings longer.
     std::array<int, maxBars> chordShift {};
     std::vector<Note> bass, melody;
+    std::vector<Note> chords;          // the progression played in the genre's comping rhythm, under the melody
     uint32_t seed {};                  // composition seed: same context + seed = same melody
     int bars() const { return progression.chordCount; }
     int lengthTicks() const { return bars() * barTicks; }
@@ -79,8 +81,10 @@ public:
     Pattern generate(const Settings&);
     // Keeps chords and bass, writes a new melody (settings may change role / density / range / feel).
     Pattern newMelody(const Pattern&, const Settings&);
-    // Small edits to the existing melody: neighbour tones on weak beats.
+    // A relative of the current melody: its top line is varied, then re-layered.
     Pattern variation(const Pattern&);
+    // The melody's top voice (highest note per onset), without the added layer notes.
+    static std::vector<Note> topLine(const std::vector<Note>&);
 
     static std::vector<int> chordPitchClasses(const ccp::Chord&);
     static int bassRoot(const ccp::Chord&);
@@ -90,6 +94,10 @@ private:
     std::vector<Note> bassFor(const Pattern&);
     void shapeHarmony(Pattern&);
     std::vector<Note> melodyFor(Pattern&);
+    void buildProgression(Pattern&);
+    void fitChords(Pattern&);
+    std::vector<Note> compFor(const Pattern&);
+    std::vector<Note> layered(const Pattern&, std::vector<Note> line, uint32_t seed) const;
     uint64_t signature(const std::vector<Note>&) const;
     std::mt19937 rng;
     ccp::ProgressionGenerator harmony;

@@ -55,6 +55,7 @@ struct EvalWeights {
     double ending = 4.0;
     double density = 4.0;          // notes per bar inside the density's window
     double monotony = 2.0;         // long same-pitch or same-direction runs
+    double genre = 5.0;            // syncopation / notes / space inside the genre engine's windows
 };
 
 PitchWeights& pitchWeights();

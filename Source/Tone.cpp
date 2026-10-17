@@ -8,14 +8,14 @@ using F = Family;
 // ids 0..5 are the original six sounds (saved sessions keep loading them); variants follow.
 //                                                                       env: atk   decay sus  rel     macros: char body atk  move space tex  rel       polish: cut  width chorus   perf: vel bright vib rate glide   level
 const Preset presets[] {
-    { 0, "keys.warm",      "KEYS",            F::keys,   0, "Warm electric piano, soft bark when hit hard",
-      { 0.002f, 2.4f, 0.0f, 0.30f }, { 0.40f, 0.65f, 0.50f, 0.15f, 0.45f, 0.20f, 0.50f }, { 45, 0.9f, 0.10f }, { 0.75f, 0.9f, 0, 0, 0 }, 1.04f },
+    { 0, "keys.electronic", "KEYS",           F::keys,   3, "Electronic piano: clear, defined digital tine with body",
+      { 0.0015f, 2.0f, 0.0f, 0.28f }, { 0.55f, 0.55f, 0.60f, 0.10f, 0.40f, 0.10f, 0.45f }, { 55, 1.0f, 0.10f }, { 0.75f, 1.0f, 0, 0, 0 }, 1.25f },
     { 1, "bells.crystal",  "BELLS",           F::bells,  0, "Clear glass bell, inharmonic shimmer that fades fast",
       { 0.0015f, 3.2f, 0.0f, 0.80f }, { 0.50f, 0.45f, 0.50f, 0.20f, 0.55f, 0.25f, 0.50f }, { 120, 1.0f, 0.00f }, { 0.70f, 0.9f, 0, 0, 0 }, 1.12f },
     { 2, "pad.warm",       "PAD",             F::pad,    0, "Warm supersaw pad, slow breathing filter",
       { 0.45f, 1.0f, 0.85f, 1.20f }, { 0.40f, 0.55f, 0.50f, 0.40f, 0.55f, 0.15f, 0.50f }, { 60, 1.0f, 0.10f }, { 0.8f, 0.4f, 0, 0, 0 }, 0.97f },
-    { 3, "pluck.string",   "PLUCK",           F::pluck,  0, "Plucked string, bright pick and a natural decay",
-      { 0.001f, 2.5f, 0.0f, 0.18f }, { 0.55f, 0.45f, 0.55f, 0.00f, 0.40f, 0.10f, 0.50f }, { 50, 0.9f, 0.00f }, { 0.7f, 0.8f, 0, 0, 0 }, 0.66f },
+    { 3, "pluck.square",   "PLUCK",           F::pluck,  4, "Square wave pluck: hollow, synthetic, defined attack",
+      { 0.001f, 0.7f, 0.0f, 0.15f }, { 0.55f, 0.45f, 0.55f, 0.00f, 0.40f, 0.10f, 0.50f }, { 50, 0.9f, 0.00f }, { 0.8f, 1.0f, 0, 0, 0 }, 0.80f },
     { 4, "lead.soft",      "LEAD",            F::lead,   0, "Soft analog lead, two saws and a square, late vibrato",
       { 0.010f, 0.6f, 0.90f, 0.20f }, { 0.45f, 0.50f, 0.50f, 0.30f, 0.35f, 0.15f, 0.50f }, { 80, 0.8f, 0.00f }, { 0.6f, 0.8f, 8, 5.0f, 0 }, 0.68f },
     { 5, "mallet.marimba", "MALLET",          F::mallet, 0, "Wooden marimba bar with a soft mallet",
@@ -23,8 +23,8 @@ const Preset presets[] {
 
     { 6, "keys.clean",     "KEYS CLEAN",      F::keys,   1, "Clean tine piano, round and close, little bark",
       { 0.002f, 2.0f, 0.0f, 0.25f }, { 0.25f, 0.55f, 0.55f, 0.00f, 0.30f, 0.00f, 0.45f }, { 50, 0.8f, 0.05f }, { 0.75f, 0.7f, 0, 0, 0 }, 1.27f },
-    { 7, "keys.suitcase",  "KEYS ELECTRIC",   F::keys,   2, "Driven suitcase piano with stereo tremolo",
-      { 0.002f, 2.6f, 0.0f, 0.35f }, { 0.70f, 0.60f, 0.60f, 0.60f, 0.40f, 0.50f, 0.50f }, { 50, 1.1f, 0.00f }, { 0.8f, 1.0f, 0, 0, 0 }, 1.06f },
+    { 7, "keys.rhodes",    "RHODES",          F::keys,   0, "Rhodes: soft, warm tine with bark when played hard and a gentle tremolo",
+      { 0.002f, 2.8f, 0.0f, 0.35f }, { 0.45f, 0.70f, 0.45f, 0.45f, 0.45f, 0.25f, 0.55f }, { 50, 1.1f, 0.00f }, { 0.8f, 1.0f, 0, 0, 0 }, 1.06f },
     { 8, "keys.modern",    "KEYS MODERN",     F::keys,   3, "Digital FM keys, glassy top and a firm attack",
       { 0.001f, 1.8f, 0.0f, 0.25f }, { 0.70f, 0.40f, 0.65f, 0.20f, 0.45f, 0.15f, 0.45f }, { 70, 1.0f, 0.15f }, { 0.7f, 1.0f, 0, 0, 0 }, 1.53f },
 
@@ -62,6 +62,8 @@ const Preset presets[] {
       { 0.001f, 2.6f, 0.0f, 0.25f }, { 0.40f, 0.50f, 0.45f, 0.55f, 0.50f, 0.05f, 0.55f }, { 60, 1.0f, 0.05f }, { 0.7f, 0.8f, 0, 0, 0 }, 0.83f },
     { 23, "mallet.kalimba","MALLET KALIMBA",  F::mallet, 2, "Kalimba tine with a thumb click and a little buzz",
       { 0.0008f, 1.2f, 0.0f, 0.12f }, { 0.55f, 0.50f, 0.60f, 0.00f, 0.40f, 0.35f, 0.50f }, { 70, 0.9f, 0.00f }, { 0.7f, 0.9f, 0, 0, 0 }, 1.00f },
+    { 24, "pluck.string",  "PLUCK STRING",    F::pluck,  0, "Plucked string, bright pick and a natural decay",
+      { 0.001f, 2.5f, 0.0f, 0.18f }, { 0.55f, 0.45f, 0.55f, 0.00f, 0.40f, 0.10f, 0.50f }, { 50, 0.9f, 0.00f }, { 0.7f, 0.8f, 0, 0, 0 }, 0.68f },
 };
 constexpr int presetTotal = (int) (sizeof(presets) / sizeof(presets[0]));
 }

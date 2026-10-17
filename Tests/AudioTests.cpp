@@ -104,7 +104,8 @@ int toneTests() {
     // variants really differ inside each family (brightness or decay)
     for (int a = 0; a < Synth::presetCount; ++a)
         for (int b = a + 1; b < Synth::presetCount; ++b) {
-            if (tone::get(a).family != tone::get(b).family) continue;
+            const bool bothShown = Synth::shownPreset(a) == a && Synth::shownPreset(b) == b && a != 0 ? true : (a == 0 && Synth::shownPreset(b) == b);
+            if (tone::get(a).family != tone::get(b).family && !bothShown) continue;   // the three sounds in SOUND must all differ
             const double d = std::abs(std::log(feat[a][0] / feat[b][0])) * 4 + std::abs(feat[a][1] - feat[b][1]) / 6 + std::abs(feat[a][3] - feat[b][3]) * 10;
             if (d < 0.25) { std::printf("  too similar: %s / %s (%.2f)\n", tone::get(a).name, tone::get(b).name, d); ++failures; }
         }

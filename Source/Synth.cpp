@@ -31,7 +31,7 @@ float readFrac(const std::vector<float>& buf, int writePos, double delay) {
 }
 
 const char* Synth::presetName(int p) { return tone::get(p).name; }
-static_assert(Synth::presetCount == 24, "keep in step with the table in Tone.cpp");
+static_assert(Synth::presetCount == 25, "keep in step with the table in Tone.cpp");
 
 void Synth::prepare(double rate) {
     sr = rate;
@@ -284,6 +284,15 @@ void Synth::renderVoice(Voice& v, float& outL, float& outR, double pitchRatio) {
                 s = lowpass(v, 0, osc * 0.5f, cutoff, 0.7f + 1.5f * c);
                 s += sine(v.phase[0]) * 0.25f * b;
                 amp = 0.62f;
+            } else if (P.algo == 4) {   // square wave pluck: a slightly detuned pulse pair through a snapping low-pass
+                const double d2 = dt * cents(4.0 + 6.0 * mo);
+                const float osc = square(v.phase[1], dt) + 0.35f * square(v.phase[2], d2);
+                advance(v.phase[1], dt); advance(v.phase[2], d2);
+                const float fenv = std::exp(-t / (0.04f + 0.2f * (1.0f - a)));
+                const float cutoff = (float) f * 2.0f + 6000.0f * br * (0.35f + 0.65f * c) * fenv;
+                s = lowpass(v, 0, osc * 0.4f, cutoff, 0.8f + 0.8f * c);
+                s += sine(v.phase[0]) * 0.2f * b;
+                amp = 0.5f;
             } else {   // digital: FM with a fast index drop
                 const float idx = (1.0f + 3.0f * c * br) * std::exp(-t * (12.0f + 12.0f * a));
                 s = (float) std::sin(twoPi * v.phase[0] + idx * std::sin(twoPi * v.phase[1])) + 0.2f * b * sine(v.phase[3]);
@@ -351,7 +360,8 @@ void Synth::renderVoice(Voice& v, float& outL, float& outR, double pitchRatio) {
     }
     ++v.age;
     if (v.stage >= decay && v.env < 0.0002f && (v.stage != decay || v.sustain == 0.0f)) v.active = false;
-    const float g = v.env * v.velAmp * amp * P.level * v.gain * (v.bass ? bassLevel : melodyLevel);
+    // 0.7: headroom for melody + chords + bass together, so the limiter only catches peaks
+    const float g = 0.7f * v.env * v.velAmp * amp * P.level * v.gain * (v.bass ? bassLevel : melodyLevel);
     outL += l * g * (1.0f - v.pan);
     outR += r * g * (1.0f + v.pan);
 }

@@ -67,7 +67,12 @@ int main() {
                             fit += std::find(pcs.begin(), pcs.end(), wrap12(n.pitch)) != pcs.end();
                         }
                     }
-                    endsHome += wrap12(p.melody.back().pitch) == key;
+                    {   // the top voice lands home: the tonic, or a tone of the last chord when that chord has no tonic
+                        const int last = wrap12(Engine::topLine(p.melody).back().pitch);
+                        const auto pcs = Engine::chordPitchClasses(p.chordAt(p.lengthTicks() - 1));
+                        const bool tonicInChord = std::find(pcs.begin(), pcs.end(), key) != pcs.end();
+                        endsHome += last == key || (!tonicInChord && std::find(pcs.begin(), pcs.end(), last) != pcs.end());
+                    }
                     ++runs;
                 }
         const double scaleShare = (double) inScale / total, fitShare = (double) fit / std::max(1, strong), homeShare = (double) endsHome / runs;
@@ -126,7 +131,7 @@ int main() {
     {
         auto rhythmRepeat = [](const Pattern& p) {
             std::vector<std::vector<int>> bars((size_t) p.bars());
-            for (auto& n : p.melody) bars[(size_t) (n.start / barTicks)].push_back(n.start % barTicks);
+            for (auto& n : Engine::topLine(p.melody)) bars[(size_t) (n.start / barTicks)].push_back(n.start % barTicks);
             int same = 0; for (int b = 1; b < p.bars(); ++b) for (int a = 0; a < b; ++a) if (bars[(size_t) a] == bars[(size_t) b]) { ++same; break; }
             return (double) same / (p.bars() - 1);
         };
@@ -180,7 +185,9 @@ int main() {
             for (auto& n : p.melody) bars[(size_t) (n.start / barTicks)].push_back(n.pitch * 10000 + n.start % barTicks);
             bool all = true; for (int b = 1; b < 8; ++b) all &= bars[(size_t) b] == bars[0];
             literal += all;
-            int sounding = 0; for (auto& n : p.melody) sounding += n.length;
+            std::vector<char> on((size_t) p.lengthTicks(), 0);   // time covered by any note (layers overlap)
+            for (auto& n : p.melody) for (int t = n.start; t < n.start + n.length; ++t) on[(size_t) t] = 1;
+            int sounding = 0; for (char c : on) sounding += c;
             noRest += sounding >= p.lengthTicks() - step;
         }
         CHECK(literal == 0, "%d melodies repeat one bar literally", literal);
@@ -201,7 +208,9 @@ int main() {
         Settings s; s.bars = 8; auto p = e.generate(s);
         const auto bytes = midiBytes(p.melody, 97, 0, p.lengthTicks());
         int tempo = 0, last = 0;
-        const auto back = readMidi(bytes, tempo, last);
+        auto back = readMidi(bytes, tempo, last);
+        auto order = [](const Note& a, const Note& b) { return a.start != b.start ? a.start < b.start : a.pitch < b.pitch; };
+        std::sort(back.begin(), back.end(), order); std::sort(p.melody.begin(), p.melody.end(), order);
         bool same = back.size() == p.melody.size();
         for (size_t i = 0; same && i < back.size(); ++i)
             same = back[i].start == p.melody[i].start && back[i].length == p.melody[i].length && back[i].pitch == p.melody[i].pitch && back[i].velocity == p.melody[i].velocity;
@@ -237,6 +246,64 @@ int main() {
         }
         std::printf("vibe notes/len  clean %.1f/%.0f  dreamy %.1f/%.0f  space %.1f/%.0f\n", notes[0], len[0], notes[1], len[1], notes[2], len[2]);
         CHECK(notes[1] < notes[0] && notes[2] < notes[0], "vibes do not change the phrase");
+    }
+
+    // 12. genre engines: same key, scale, bars and density, only the style changes
+    {
+        struct G { double notes = 0, sync = 0, rest = 0, layer = 0, fit = 0, clash = 0; int n = 0; };
+        std::map<int, G> g;
+        int badChords = 0, badComp = 0;
+        for (int st = 1; st < (int) Style::count; ++st)
+            for (int i = 0; i < 40; ++i) {
+                Settings s; s.style = (Style) st; s.key = 4; s.scale = i < 20 ? 1 : i % 6; s.bars = 8; s.density = Density::mid;   // natural minor, then every common scale
+                auto p = e.generate(s);
+                const auto top = Engine::topLine(p.melody);
+                auto& x = g[st]; ++x.n;
+                x.notes += (double) top.size() / p.bars();
+                int off = 0; for (auto& n : top) off += n.start % ppq != 0; x.sync += (double) off / top.size();
+                std::vector<char> on((size_t) p.lengthTicks(), 0);
+                for (auto& n : p.melody) for (int t = n.start; t < n.start + n.length; ++t) on[(size_t) t] = 1;
+                int cov = 0; for (char c : on) cov += c; x.rest += 1.0 - (double) cov / p.lengthTicks();
+                x.layer += (double) (p.melody.size() - top.size()) / top.size();
+                // harmony: strong-beat melody notes against the chord sounding there
+                int strong = 0, inChord = 0;
+                for (auto& n : top) if (n.start % (2 * ppq) == 0) { ++strong; for (int pc : Engine::chordPitchClasses(p.chordAt(n.start))) if (pc == wrap12(n.pitch)) { ++inChord; break; } }
+                x.fit += strong ? (double) inChord / strong : 1;
+                // the melody part never stacks a semitone / tritone / major 7th by accident
+                for (size_t a = 0; a < p.melody.size(); ++a)
+                    for (size_t b = a + 1; b < p.melody.size(); ++b) {
+                        const auto &na = p.melody[a], &nb = p.melody[b];
+                        if (nb.start >= na.start + na.length || na.start >= nb.start + nb.length || na.start != nb.start) continue;
+                        const int d = std::abs(na.pitch - nb.pitch) % 12;
+                        if (d == 1 || d == 11 || d == 6) x.clash += 1;
+                    }
+                // chords: valid, in key (diatonic), comp notes inside the loop and under the melody register
+                if (!ccp::HarmonyEngine::valid(p.progression)) ++badChords;
+                for (int c = 0; c < p.bars(); ++c) {   // no diminished / augmented chords
+                    const auto& ch = p.progression.chords[(size_t) c]; std::set<int> iv;
+                    for (int k = 0; k < ch.noteCount; ++k) iv.insert(wrap12(ch.notes[(size_t) k] - ch.root));
+                    if (!iv.count(7) && (iv.count(6) || iv.count(8))) { ++badChords; break; }
+                }
+                const auto sn = ccp::HarmonyEngine::scaleNotes(p.key, p.scale);
+                for (int c = 0; c < p.bars(); ++c) if (p.progression.chords[(size_t) c].quality < 0) for (int pc : Engine::chordPitchClasses(p.progression.chords[(size_t) c]))
+                    if (std::find_if(sn.begin(), sn.end(), [&](int v) { return wrap12(v) == pc; }) == sn.end()) { ++badChords; break; }
+                for (auto& n : p.chords) if (n.start < 0 || n.start + n.length > p.lengthTicks() || n.pitch < 45 || n.pitch > 72) { ++badComp; break; }
+                CHECK(valid(p, p.melody, styleName((Style) st)), "genre melody invalid");
+            }
+        std::printf("genre           notes/bar  sync  rest  layer  chord-fit\n");
+        for (auto& [st, x] : g) {
+            std::printf("  %-12s %6.2f  %5.2f %5.2f %6.2f  %5.2f\n", styleName((Style) st), x.notes / x.n, x.sync / x.n, x.rest / x.n, x.layer / x.n, x.fit / x.n);
+            CHECK(x.fit / x.n > .8, "%s: strong beats off the chords", styleName((Style) st));
+            CHECK(x.clash == 0, "%s: accidental clusters in the melody part", styleName((Style) st));
+            CHECK(x.layer / x.n > .03, "%s: no note layering", styleName((Style) st));
+        }
+        CHECK(badChords == 0, "%d progressions invalid or out of key", badChords);
+        CHECK(badComp == 0, "%d comping parts out of range", badComp);
+        // every pair of genres differs clearly in at least one rhythmic trait
+        for (auto& [a, x] : g) for (auto& [b, y] : g) if (a < b) {
+            const double d = std::abs(x.notes - y.notes) / x.n / 1.0 + std::abs(x.sync - y.sync) / x.n * 6 + std::abs(x.rest - y.rest) / x.n * 4 + std::abs(x.layer - y.layer) / x.n * 4;
+            CHECK(d > .35, "%s and %s too alike (%.2f)", styleName((Style) a), styleName((Style) b), d);
+        }
     }
 
     // print one example

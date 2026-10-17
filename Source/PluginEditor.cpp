@@ -724,11 +724,7 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     for (int i = 0; i < (int) ccp::ScaleType::count; ++i) scaleBox.addItem(utf8(ccp::scaleName((ccp::ScaleType) i)), i + 2);
     for (int i = 0; i < (int) mc::Style::count; ++i) styleBox.addItem(utf8(mc::styleName((mc::Style) i)), i + 1);
     for (int i = 0; i < (int) mc::Vibe::count; ++i) vibeBox.addItem(utf8(mc::vibeName((mc::Vibe) i)), i + 1);
-    for (int f = 0; f <= (int) tone::Family::mallet; ++f) {   // grouped by family; the id stays the preset id + 1
-        soundBox.addSectionHeading(tone::familyName((tone::Family) f));
-        for (int i = 0; i < Synth::presetCount; ++i)
-            if ((int) tone::get(i).family == f) soundBox.addItem(Synth::presetName(i), i + 1);
-    }
+    for (int id : Synth::shownPresets) soundBox.addItem(Synth::presetName(id), id + 1);   // id stays the preset id + 1
     auto onSetting = [this] {
         auto& s = proc.settings();
         s.key = keyBox.getSelectedId() - 2;      // id 1 = PADRÃO (-1)
@@ -852,6 +848,7 @@ juce::StringArray MelodyCodeEditor::writeMidiFiles(const juce::File& folder, con
     };
     write(p.melody, "Melody", 0);
     write(p.bass, "Bass", 1);
+    write(p.chords, "Chords", 2);
     return out;
 }
 
@@ -862,7 +859,7 @@ void MelodyCodeEditor::saveMidi() {
             const auto f = fc.getResult();
             if (f == juce::File()) return;
             const auto files = writeMidiFiles(f.getParentDirectory(), f.getFileNameWithoutExtension());
-            showHint(files.size() == 2 ? "Salvo: " + f.getFileNameWithoutExtension() + " - Melody.mid e - Sub.mid" : utf8("N\xc3\xa3o foi poss\xc3\xadvel salvar nessa pasta"));
+            showHint(files.size() == 3 ? "Salvo: " + f.getFileNameWithoutExtension() + " - Melody, Bass e Chords.mid" : utf8("N\xc3\xa3o foi poss\xc3\xadvel salvar nessa pasta"));
         });
 }
 

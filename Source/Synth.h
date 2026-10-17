@@ -12,7 +12,10 @@ class Synth {
 public:
     // The first six ids are the original sounds; the Tone Design Engine adds variants after them (Tone.h).
     enum Preset { keys, bells, pad, pluck, lead, mallet };
-    static constexpr int presetCount = 24;
+    static constexpr int presetCount = 25;
+    // The sounds offered in SOUND for now: KEYS (electronic piano), PLUCK (square wave), RHODES.
+    static constexpr int shownPresets[] { 0, 3, 7 };
+    static int shownPreset(int id) { for (int x : shownPresets) if (x == id) return id; return 0; }
     static const char* presetName(int);
 
     // Effect settings for one Vibe.

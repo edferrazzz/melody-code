@@ -1,4 +1,5 @@
 #include "Composer.h"
+#include "Genres.h"
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -25,22 +26,9 @@ struct StyleTaste {
     double legato;        // note length as a share of the gap to the next note
     double twoBarMotif;   // chance the motif is two bars long (4 / 8 bar phrases)
 };
-const StyleTaste& styleTaste(Style s) {
-    static const StyleTaste t[] {
-        /* automatic */ { 4.5, .45, .25, .30, .70, .35, .85, .35 },
-        /* funkBR    */ { 5.5, .70, .50, .30, .85, .30, .55, .25 },
-        /* pop       */ { 4.5, .40, .20, .30, .75, .35, .90, .40 },
-        /* trap      */ { 5.0, .55, .35, .30, .80, .30, .80, .35 },
-        /* phonk     */ { 5.5, .60, .40, .25, .85, .30, .65, .25 },
-        /* drill     */ { 5.0, .70, .40, .30, .75, .40, .75, .35 },
-        /* bossaNova */ { 4.5, .65, .15, .30, .55, .45, .95, .55 },
-        /* jazz      */ { 6.0, .55, .30, .25, .45, .55, .85, .55 },
-        /* rnb       */ { 4.5, .55, .35, .35, .60, .45, 1.0, .45 },
-        /* reggaeton */ { 5.0, .65, .30, .30, .80, .30, .70, .30 },
-        /* house     */ { 4.5, .75, .25, .35, .85, .30, .70, .30 },
-        /* loFi      */ { 3.5, .45, .20, .45, .65, .40, 1.0, .50 },
-    };
-    return t[std::clamp((int) s, 0, (int) Style::count - 1)];
+StyleTaste styleTaste(Style s) {   // the genre engine's melody habits (Genres.cpp)
+    const auto& g = genre::get(s);
+    return { g.notesPerBar, g.syncopation, g.sixteenths, g.restiness, g.literal, g.leapiness, g.legato, g.twoBarMotif };
 }
 
 /* Vibe = the intention and character of the phrase (it also shapes the preview sound, separately).
@@ -73,6 +61,7 @@ struct Context {
     std::vector<int> scale;           // pitch classes
     Register reg {};
     StyleTaste style {};
+    const genre::Engine* g {};
     VibeTaste vibe {};
     Role role {};
     Density density {};
@@ -109,6 +98,7 @@ Context makeContext(const Pattern& p, const std::vector<Note>* lead) {
     for (auto& x : c.scale) x = wrap12(x);
     c.reg = registerFor(p.settings);
     c.style = styleTaste(p.style);
+    c.g = &genre::get(p.style);
     c.vibe = vibeTaste(p.settings.vibe);
     c.role = p.settings.role;
     c.density = p.settings.density;
@@ -157,8 +147,55 @@ const std::vector<Cell>& cells() {
     return c;
 }
 
+int beatStrength(int tick);
+
+// Genre groove: each bar starts from one of the genre's own rhythm figures, then is thinned or split to the
+// wanted density and given a breath. Triplet feel uses the generic cells below (every genre can roll).
+std::vector<Ev> grooveRhythm(const Context& ctx, Rng& r, int bars, double densityScale) {
+    const auto& G = ctx.g->groove;
+    const double want = ctx.notesPerBar * densityScale;
+    std::vector<Ev> out;
+    for (int b = 0; b < bars; ++b) {
+        std::vector<double> w;
+        for (const auto& bar : G) w.push_back(std::exp(-0.6 * std::abs((double) bar.size() - want)) + 0.05);
+        std::discrete_distribution<int> pickBar(w.begin(), w.end());
+        static thread_local int hookBar = 0;
+        const int chosen = ctx.hook && b > 0 ? hookBar : pickBar(r);   // a hook repeats one figure
+        hookBar = chosen;
+        std::vector<Ev> notes;
+        for (const auto& h : G[(size_t) chosen]) notes.push_back({ h.on * step, h.len * step });
+        // thin: drop the weakest (off-beat, short) note until close to the wanted count
+        while ((double) notes.size() > want + 1.0 && notes.size() > 2) {
+            size_t worst = 1; double ws = 1e9;
+            for (size_t i = 1; i < notes.size(); ++i) {
+                const double sc = beatStrength(notes[i].start) * 2 + notes[i].length / (double) step + U(r) * .5;
+                if (sc < ws) { ws = sc; worst = i; }
+            }
+            notes.erase(notes.begin() + (long) worst);
+        }
+        // split: halve the longest note until close to the wanted count
+        while ((double) notes.size() < want - 1.0) {
+            size_t longest = 0;
+            for (size_t i = 1; i < notes.size(); ++i) if (notes[i].length > notes[longest].length) longest = i;
+            if (notes[longest].length < 2 * step) break;
+            const int half = notes[longest].length / 2 / step * step;
+            notes.insert(notes.begin() + (long) longest + 1, Ev { notes[longest].start + half, notes[longest].length - half });
+            notes[longest].length = half;
+        }
+        // breath: sometimes leave a weak note out (rests are part of the phrase)
+        if (notes.size() > 2 && U(r) < ctx.style.restiness * ctx.vibe.rests * .35) {
+            const size_t i = 1 + (size_t) D(r, 0, (int) notes.size() - 2);
+            if (beatStrength(notes[i].start) < 2) notes.erase(notes.begin() + (long) i);
+        }
+        for (auto e : notes) out.push_back({ b * barTicks + e.start, e.length });
+    }
+    if (out.empty()) out.push_back({ 0, ppq });
+    return out;
+}
+
 // Rhythm for `bars` bars, aiming at ctx.notesPerBar events per bar.
 std::vector<Ev> makeRhythm(const Context& ctx, Rng& r, int bars, double densityScale = 1.0) {
+    if (ctx.feel != Feel::triplet && ctx.g && !ctx.g->groove.empty()) return grooveRhythm(ctx, r, bars, densityScale);
     const auto& C = cells();
     const double perBeat = ctx.notesPerBar * densityScale / 4.0;
     const bool tripletFeel = ctx.feel == Feel::triplet;
@@ -176,7 +213,7 @@ std::vector<Ev> makeRhythm(const Context& ctx, Rng& r, int bars, double densityS
             if (c.tie) x = (b % 4 == 0 || out.empty()) ? 0 : 0.25 * ctx.vibe.length * (perBeat < 1.3 ? 1.5 : 0.5);
             if (c.synco > 0) x *= 0.4 + 1.6 * ctx.style.syncopation * c.synco;
             if (c.sixteenths > 0) x *= (ctx.density == Density::low ? 0.15 : 0.3) + 1.4 * ctx.style.sixteenths * (ctx.density == Density::high ? 1.6 : 1.0);
-            if (tripletFeel) x *= c.triplet ? 2.2 : 0.6;
+            if (tripletFeel) x *= c.triplet ? 4.0 : 0.35;
             if (b % 4 == 0 && c.notes.empty()) x *= b == 0 ? 0.05 : 0.5;          // phrases start, bars rarely open on silence
             w[i] = std::max(0.0, x);
         }
@@ -235,6 +272,7 @@ int choosePitch(const Context& ctx, Rng& r, const PitchState& st, int tick, int 
                 s += prepared ? W.nonChordStrong + ctx.vibe.tension * 1.4 : W.nonChordStrong - (strength == 3 ? 1.0 : 0.0);
             }
         } else if (ct) s += W.chordWeak * (strength == 1 ? 1.5 : 1.0);
+        else if (inS && st.prev && std::abs(m - st.prev) <= 2) s += 2.0 * ctx.g->passing;   // passing / neighbour note (genre taste)
         if (st.prev) {
             const int iv = m - st.prev, a = std::abs(iv);
             if (a == 0) s += st.repeats >= 2 ? W.tooManyRepeats : W.repeat * (0.5 + ctx.style.literal);
@@ -357,21 +395,33 @@ std::vector<Ev> varyRhythm(const Context& ctx, Rng& r, std::vector<Ev> rh) {
 // Phrase plan: what each motif-sized unit does.
 enum class Unit { statement, sequence, develop, fragment, climax, open, cadence };
 
+Unit unitOf(char c) {
+    switch (c) {
+        case 'Q': return Unit::sequence; case 'D': return Unit::develop; case 'F': return Unit::fragment;
+        case 'O': return Unit::open; case 'X': return Unit::climax; case 'C': return Unit::cadence; default: return Unit::statement;
+    }
+}
+
+// Phrase form from the genre engine (hook role keeps its repeat-heavy form).
 std::vector<Unit> plan(const Context& ctx, Rng& r, int units) {
     using U_ = Unit;
     if (units == 1) return { U_::cadence };
     if (units == 2) return { U_::statement, U_::cadence };
-    if (units == 4) {
-        if (ctx.hook) return { U_::statement, U_::statement, U_::develop, U_::cadence };
-        const double x = U(r);
-        if (x < .45) return { U_::statement, U_::sequence, U_::fragment, U_::cadence };     // sentence
-        if (x < .8) return { U_::statement, U_::open, U_::statement, U_::cadence };         // period
-        return { U_::statement, U_::develop, U_::sequence, U_::cadence };
+    if (ctx.hook) {
+        if (units == 4) return { U_::statement, U_::statement, U_::develop, U_::cadence };
+        return { U_::statement, U_::statement, U_::develop, U_::open, U_::statement, U_::statement, U_::climax, U_::cadence };
     }
-    // 8 units: two 4-unit halves, the first open, the second with the climax and the close
-    if (ctx.hook) return { U_::statement, U_::statement, U_::develop, U_::open, U_::statement, U_::statement, U_::climax, U_::cadence };
-    if (U(r) < .5) return { U_::statement, U_::sequence, U_::develop, U_::open, U_::statement, U_::sequence, U_::climax, U_::cadence };
-    return { U_::statement, U_::develop, U_::statement, U_::open, U_::statement, U_::fragment, U_::climax, U_::cadence };
+    const auto& forms = ctx.g->forms;
+    const char* a = forms[(size_t) D(r, 0, (int) forms.size() - 1)];
+    std::vector<Unit> out;
+    for (int i = 0; i < 4; ++i) out.push_back(unitOf(a[i]));
+    if (units == 4) return out;
+    // 8 units: the first half ends open, the second half reaches the climax before its close
+    const char* b = forms[(size_t) D(r, 0, (int) forms.size() - 1)];
+    if (out[3] == U_::cadence) out[3] = U_::open;
+    for (int i = 0; i < 4; ++i) out.push_back(unitOf(b[i]));
+    if (out[6] == U_::statement || out[6] == U_::develop || out[6] == U_::sequence) out[6] = U_::climax;
+    return out;
 }
 
 std::vector<Note> writeOne(const Context& ctx, uint32_t seed) {
@@ -382,7 +432,7 @@ std::vector<Note> writeOne(const Context& ctx, uint32_t seed) {
     if (bars >= 4 && !ctx.hook && U(r) < ctx.style.twoBarMotif) motifBars = 2;
     const int units = bars / motifBars;
     const auto& vt = ctx.vibe;
-    double cw[5]; for (int i = 0; i < 5; ++i) cw[i] = vt.contour[i];
+    double cw[5]; for (int i = 0; i < 5; ++i) cw[i] = vt.contour[i] * ctx.g->contour[(size_t) i];
     std::discrete_distribution<int> contourPick(cw, cw + 5);
 
     Motif motif;
@@ -429,7 +479,7 @@ std::vector<Note> writeOne(const Context& ctx, uint32_t seed) {
                             if (beatStrength(offset + rh[i].start) >= 2) fit += has(ctx.chordAt(offset + rh[i].start), wrap12(p[i])) ? 1.0 : -1.0;
                         if (fit > bestFit) { bestFit = fit; best = sh; }
                     }
-                    if (U(r) > ctx.style.literal) rh = varyRhythm(ctx, r, rh);
+                    if (!ctx.hook && U(r) > ctx.style.literal) rh = varyRhythm(ctx, r, rh);   // a hook keeps its rhythm
                     if (rh.size() == motif.rhythm.size()) pitches = shiftDiatonic(ctx, motif.pitch, best);
                     else { st.prev = st.prev; pitches = writePitches(ctx, r, st, rh, offset, motif.contour, &motif.pitch, ending, 0); }
                     break;
@@ -575,7 +625,7 @@ double evaluate(const Pattern& p, const std::vector<Note>& m) {
     }
     if (ctx.bars > 1) {
         const double rr = (double) sameRhythm / (ctx.bars - 1), ii = (double) identical / (ctx.bars - 1);
-        const double want = ctx.hook ? .6 : .35;
+        const double want = ctx.hook ? std::min(.95, ctx.g->targets.repeat + .2) : ctx.g->targets.repeat;
         score += W.repetition * (1.0 - std::abs(rr - want) * 1.5) - (ii >= .99 ? 3 * W.repetition : ii > .6 ? W.repetition : 0);
     }
     // ending
@@ -585,6 +635,15 @@ double evaluate(const Pattern& p, const std::vector<Note>& m) {
     // density
     const double perBar = (double) m.size() / ctx.bars, want = ctx.notesPerBar;
     score += W.density * (1.0 - std::min(2.0, std::abs(perBar - want) / std::max(1.0, want * .5)));
+    // genre fidelity: syncopation, busyness and space inside the genre engine's windows
+    {
+        const auto& T = ctx.g->targets;
+        int off = 0; for (auto& n : m) off += n.start % ppq != 0;
+        const double sync = (double) off / m.size();
+        const double densF = ctx.density == Density::low ? .6 : ctx.density == Density::high ? 1.5 : 1.0;
+        auto window = [](double x, double lo, double hi) { return x >= lo && x <= hi ? 1.0 : -std::min(1.5, std::min(std::abs(x - lo), std::abs(x - hi)) * 3); };
+        score += W.genre * (window(sync, T.syncLo, T.syncHi) + window(perBar, T.notesLo * densF, T.notesHi * densF) * .7 + window(rest, T.restLo, T.restHi) * .5);
+    }
     // monotony
     int run = 1, worstRun = 1, dirRun = 0, worstDir = 0;
     for (size_t i = 1; i < m.size(); ++i) {
