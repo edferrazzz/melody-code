@@ -724,7 +724,11 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     for (int i = 0; i < (int) ccp::ScaleType::count; ++i) scaleBox.addItem(utf8(ccp::scaleName((ccp::ScaleType) i)), i + 2);
     for (int i = 0; i < (int) mc::Style::count; ++i) styleBox.addItem(utf8(mc::styleName((mc::Style) i)), i + 1);
     for (int i = 0; i < (int) mc::Vibe::count; ++i) vibeBox.addItem(utf8(mc::vibeName((mc::Vibe) i)), i + 1);
-    for (int i = 0; i < Synth::presetCount; ++i) soundBox.addItem(Synth::presetName(i), i + 1);
+    for (int f = 0; f <= (int) tone::Family::mallet; ++f) {   // grouped by family; the id stays the preset id + 1
+        soundBox.addSectionHeading(tone::familyName((tone::Family) f));
+        for (int i = 0; i < Synth::presetCount; ++i)
+            if ((int) tone::get(i).family == f) soundBox.addItem(Synth::presetName(i), i + 1);
+    }
     auto onSetting = [this] {
         auto& s = proc.settings();
         s.key = keyBox.getSelectedId() - 2;      // id 1 = PADRÃO (-1)
@@ -736,7 +740,8 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     // the vibe changes the preview sound now and the phrase character from the next generation (notes on screen stay)
     vibeBox.onChange = [this] { proc.setVibe((mc::Vibe) (vibeBox.getSelectedId() - 1)); };
     content.addAndMakeVisible(vibeBox);
-    soundBox.onChange = [this] { proc.preset = soundBox.getSelectedId() - 1; };
+    // changing the sound only changes the preview instrument: the notes, history and MIDI stay as they are
+    soundBox.onChange = [this] { proc.preset = soundBox.getSelectedId() - 1; soundBox.setTooltip(tone::get(proc.preset).description); };
     content.addAndMakeVisible(soundBox);
     content.addAndMakeVisible(roll);
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MelodyCode VERSION 1.6.0 LANGUAGES C CXX)
+project(MelodyCode VERSION 1.7.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(APPLE)
@@ -19,7 +19,8 @@ endif()
 
 add_library(melodycode_core STATIC
  Source/Core/Music.cpp Source/Core/Music.h
- Source/Core/MelodyEngine.cpp Source/Core/MelodyEngine.h)
+ Source/Core/MelodyEngine.cpp Source/Core/MelodyEngine.h
+ Source/Core/Composer.cpp Source/Core/Composer.h)
 target_include_directories(melodycode_core PUBLIC Source)
 target_compile_features(melodycode_core PUBLIC cxx_std_20)
 set_target_properties(melodycode_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -49,7 +50,7 @@ if(TARGET juce::juce_audio_utils)
  target_sources(MelodyCode PRIVATE
   Source/PluginProcessor.cpp Source/PluginProcessor.h
   Source/PluginEditor.cpp Source/PluginEditor.h
-  Source/Synth.cpp Source/Synth.h
+  Source/Synth.cpp Source/Synth.h Source/Tone.cpp Source/Tone.h
   Source/EmbeddedFonts.cpp Source/EmbeddedFonts.h)
  target_link_libraries(MelodyCode PRIVATE melodycode_core juce::juce_audio_utils juce::juce_audio_processors juce::juce_gui_basics
   PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)

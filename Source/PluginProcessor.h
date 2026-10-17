@@ -68,6 +68,8 @@ private:
     bool edited {};                         // notes changed by hand since the last generation
 
     Synth synth;
+    struct BlockEvent { int offset; mc::Note note; bool sub; };
+    std::vector<BlockEvent> events;
     double sr { 44100.0 };
     std::atomic<bool> playing { false };
     std::atomic<double> playhead { -1.0 };

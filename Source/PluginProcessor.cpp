@@ -42,6 +42,7 @@ void MelodyCodeProcessor::prepareToPlay(double rate, int) {
     synth.prepare(rate);
     midiOffs.clear();
     midiOffs.reserve(256);
+    events.reserve(1024);
 }
 
 mc::Pattern MelodyCodeProcessor::pattern() const { return shown; }
@@ -137,10 +138,9 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     synth.setLevels(bassLevel, melodyLevel);
     synth.setTempo(tempo);
 
-    struct Ev { int offset; mc::Note note; bool sub; };
-    std::vector<Ev> events;
+    events.clear();   // reserved in prepareToPlay: no allocation on the audio thread
     if (const int a = pendingAudition.exchange(-1); a >= 0)
-        events.push_back({0, {0, (int) (mc::step * 2), a, 100}, false});
+        events.push_back(BlockEvent {0, {0, (int) (mc::step * 2), a, 100}, false});
 
     if (running) {
         const juce::SpinLock::ScopedTryLockType sl(patternLock);
@@ -156,7 +156,7 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
                     for (double base : { 0.0, len }) {
                         const double t = note.start + base;
                         if (t >= from && t < to)
-                            events.push_back({ (int) ((t - from) * samplesPerTick), note, sub });
+                            events.push_back(BlockEvent { (int) ((t - from) * samplesPerTick), note, sub });
                     }
             };
             collect(audioPattern.bass, true);
@@ -166,7 +166,7 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
             playhead = position;
         }
     }
-    std::sort(events.begin(), events.end(), [](const Ev& a, const Ev& b) { return a.offset < b.offset; });
+    std::sort(events.begin(), events.end(), [](const BlockEvent& a, const BlockEvent& b) { return a.offset < b.offset; });
 
     // MIDI out: note-offs that fall in this block first, then the new notes
     if (sendMidi) {
