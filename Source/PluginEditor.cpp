@@ -118,27 +118,30 @@ void drawIcon(juce::Graphics& g, Icon icon, juce::Rectangle<float> r, juce::Colo
             g.fillPath(p); break;
         }
         case Icon::stop: g.fillRoundedRectangle(r.reduced(w * 0.2f), 2.0f); break;
-        case Icon::variation: {   // two arcs chasing each other
-            const float rad = w * 0.38f;
-            juce::Path a, b;
-            a.addCentredArc(cx, cy, rad, rad, 0, -2.6f, -0.3f, true);
-            b.addCentredArc(cx, cy, rad, rad, 0, 0.55f, 2.85f, true);
-            g.strokePath(a, stroke); g.strokePath(b, stroke);
-            arrowHead({ cx + rad * std::sin(-0.3f), cy - rad * std::cos(-0.3f) }, -0.3f);
-            arrowHead({ cx + rad * std::sin(2.85f), cy - rad * std::cos(2.85f) }, 2.85f);
+        case Icon::variation: {   // a phrase and its echo: two wavy lines, the second a little different
+            auto wave = [&](float yy, float amp, float phase, float x0, float x1) {
+                juce::Path p;
+                for (int i = 0; i <= 20; ++i) {
+                    const float t = (float) i / 20.0f;
+                    const juce::Point<float> pt { x0 + t * (x1 - x0), yy - std::sin(t * 6.283f * 1.25f + phase) * amp };
+                    if (i == 0) p.startNewSubPath(pt); else p.lineTo(pt);
+                }
+                g.strokePath(p, stroke);
+            };
+            wave(y + h * 0.32f, h * 0.16f, 0.0f, x + 1, x + w - 1);
+            wave(y + h * 0.72f, h * 0.11f, 0.9f, x + w * 0.18f, x + w - 1);
             break;
         }
-        case Icon::random: {      // crossing arrows
-            juce::Path top, bottom;
-            top.startNewSubPath(x + 1, y + h * 0.28f);
-            top.cubicTo(cx - 2, y + h * 0.28f, cx + 1, y + h * 0.72f, x + w - 4, y + h * 0.72f);
-            bottom.startNewSubPath(x + 1, y + h * 0.72f);
-            bottom.cubicTo(cx - 2, y + h * 0.72f, cx + 1, y + h * 0.28f, x + w - 4, y + h * 0.28f);
-            g.strokePath(top, stroke); g.strokePath(bottom, stroke);
-            juce::Path a;
-            a.addTriangle(x + w - 5, y + 1, x + w, y + h * 0.28f, x + w - 5, y + h * 0.5f);
-            a.addTriangle(x + w - 5, y + h - 1, x + w, y + h * 0.72f, x + w - 5, y + h * 0.5f);
-            g.fillPath(a);
+        case Icon::random: {      // new melody: an eighth note with a plus
+            const float nx = x + w * 0.12f, ny = y + h * 0.68f;
+            g.fillEllipse(nx, ny, w * 0.36f, h * 0.27f);
+            g.fillRect(nx + w * 0.30f, y + h * 0.14f, 2.0f, h * 0.68f);
+            juce::Path flag;
+            flag.startNewSubPath(nx + w * 0.31f + 1, y + h * 0.14f);
+            flag.quadraticTo(nx + w * 0.62f, y + h * 0.26f, nx + w * 0.56f, y + h * 0.48f);
+            g.strokePath(flag, stroke);
+            g.drawLine(x + w * 0.80f, y + h * 0.04f, x + w * 0.80f, y + h * 0.40f, 1.8f);
+            g.drawLine(x + w * 0.62f, y + h * 0.22f, x + w * 0.98f, y + h * 0.22f, 1.8f);
             break;
         }
         case Icon::sparkle: {     // generate: a four-point star and a small one
@@ -164,11 +167,23 @@ void drawIcon(juce::Graphics& g, Icon icon, juce::Rectangle<float> r, juce::Colo
             g.drawLine(x, y + h - 1, x + w, y + h - 1, 1.2f);
             break;
         }
-        case Icon::midi: {
-            g.drawRoundedRectangle(r.reduced(1), 2, 1.6f);
-            const float keyY = y + h * 0.57f;
-            for (int i = 1; i < 5; ++i) g.drawVerticalLine((int) std::round(x + w * (float) i / 5.0f), keyY, y + h - 1);
-            for (float k : { 0.29f, 0.49f, 0.69f }) g.fillRect(x + w * k, keyY, 2.5f, h * 0.22f);
+        case Icon::midi: {        // the 5-pin DIN socket
+            const auto c = r.reduced(1.0f);
+            g.drawEllipse(c, 1.6f);
+            const float rad = c.getWidth() * 0.30f;
+            for (int i = 0; i < 5; ++i) {
+                const float a = juce::MathConstants<float>::pi * (1.0f + 0.25f * (float) i);   // pins on the upper arc
+                g.fillEllipse(juce::Rectangle<float>(2.6f, 2.6f).withCentre({ cx + std::cos(a) * rad, cy + 1.5f + std::sin(a) * rad }));
+            }
+            g.fillRoundedRectangle(juce::Rectangle<float>(w * 0.18f, 2.6f).withCentre({ cx, c.getBottom() - 2.4f }), 1.0f);
+            break;
+        }
+        case Icon::wave: {        // audio file: waveform bars
+            const float hs[] { 0.25f, 0.55f, 0.9f, 0.6f, 1.0f, 0.45f, 0.7f, 0.3f };
+            for (int i = 0; i < 8; ++i) {
+                const float bx = x + w * ((float) i + 0.5f) / 8.0f, bh = h * hs[i] * 0.9f;
+                g.drawLine(bx, cy - bh / 2, bx, cy + bh / 2, 1.8f);
+            }
             break;
         }
         case Icon::save:
@@ -259,6 +274,10 @@ void IconButton::paintButton(juce::Graphics& g, bool over, bool down) {
     g.setColour(over ? Theme::acc : Theme::line);
     g.drawEllipse(r, 1.0f);
     drawIcon(g, icon, r.reduced(r.getWidth() * 0.26f), over ? Theme::acc : Theme::mute.brighter(0.3f));
+    if (dot) {
+        g.setColour(juce::Colour(0xffffc83d));
+        g.fillEllipse(juce::Rectangle<float>(10, 10).withCentre({ r.getRight() - 6, r.getY() + 6 }));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -347,9 +366,9 @@ bool ModalOverlay::keyPressed(const juce::KeyPress& k) {
 
 // ---------------------------------------------------------------------------
 
-SettingsPanel::SettingsPanel(MelodyCodeProcessor& p, std::function<void()> c, std::function<void()> ch)
-    : proc(p), close(std::move(c)), changed(std::move(ch)) {
-    setSize(panelWidth, 412);
+SettingsPanel::SettingsPanel(MelodyCodeProcessor& p, UpdateStatus& u, std::function<void()> c, std::function<void()> ch, std::function<void()> cu)
+    : proc(p), update(u), close(std::move(c)), changed(std::move(ch)), checkUpdate(std::move(cu)) {
+    setSize(panelWidth, 620);
     startTimerHz(4);   // keeps the DAW tempo readout fresh
 }
 
@@ -425,11 +444,40 @@ void SettingsPanel::paint(juce::Graphics& g) {
     section("MIDI", 266);
     toggle(midiRow(), "Enviar MIDI para a DAW", proc.midiOut.load(), {});
     g.setColour(quiet.brighter(0.4f)); g.setFont(font(12.0f));
-    g.drawFittedText(juce::String::fromUTF8("Melodia no canal 1 e grave no canal 2, pra gravar ou tocar com outro instrumento."),
+    g.drawFittedText(juce::String::fromUTF8("Melodia no canal 1, grave no 2 e acordes no 3, pra gravar ou tocar com outro instrumento."),
                      juce::Rectangle<int>(18, 334, panelWidth - 36, 32), juce::Justification::centredLeft, 2, 1.0f);
     divider(372);
+
+    section("ARRASTAR", 380);
+    toggle(dragRow(), "Incluir acordes e grave", proc.dragAllLayers.load(), {});
+    g.setColour(quiet.brighter(0.4f)); g.setFont(font(12.0f));
+    g.drawFittedText(juce::String::fromUTF8("Desligado, ARRASTAR MIDI e WAV levam só a melodia. Ligado, levam melodia, acordes e grave."),
+                     juce::Rectangle<int>(18, 448, panelWidth - 36, 32), juce::Justification::centredLeft, 2, 1.0f);
+    divider(486);
+
+    section(juce::String::fromUTF8("ATUALIZAÇÃO"), 494);
+    {
+        const auto row = updateRow();
+        g.setColour(isOver(row) ? panel2.brighter(0.06f) : panel2);
+        g.fillRoundedRectangle(row, 10);
+        const bool avail = update.state == UpdateStatus::available;
+        g.setColour(fg); g.setFont(font(14.5f, true));
+        g.drawText(avail ? juce::String::fromUTF8("Baixar atualização") : juce::String::fromUTF8("Verificar atualização"), row.withTrimmedLeft(12), juce::Justification::centredLeft);
+        juce::String note;
+        switch (update.state) {
+            case UpdateStatus::checking:  note = "verificando..."; break;
+            case UpdateStatus::upToDate:  note = juce::String::fromUTF8("você está em dia"); break;
+            case UpdateStatus::available: note = "v" + update.latest + juce::String::fromUTF8(" disponível"); break;
+            case UpdateStatus::failed:    note = juce::String::fromUTF8("sem conexão"); break;
+            case UpdateStatus::idle:      break;
+        }
+        g.setColour(avail ? juce::Colour(0xffffc83d) : mute);
+        g.setFont(font(12.5f));
+        g.drawText(note, row.withTrimmedRight(14), juce::Justification::centredRight);
+    }
+    divider(572);
     g.setColour(mute); g.setFont(font(12.0f));
-    g.drawText("Audio Makers", juce::Rectangle<float>(18, 380, 200, 20), juce::Justification::centredLeft);
+    g.drawText("Audio Makers", juce::Rectangle<float>(18, 584, 200, 20), juce::Justification::centredLeft);
 }
 
 void SettingsPanel::mouseUp(const juce::MouseEvent& e) {
@@ -437,6 +485,11 @@ void SettingsPanel::mouseUp(const juce::MouseEvent& e) {
     if (closeArea().contains(p)) { if (close) close(); return; }
     if (syncRow().contains(p)) proc.syncToHost = !proc.syncToHost.load();
     else if (midiRow().contains(p)) proc.midiOut = !proc.midiOut.load();
+    else if (dragRow().contains(p)) proc.dragAllLayers = !proc.dragAllLayers.load();
+    else if (updateRow().contains(p)) {
+        if (update.state == UpdateStatus::available && update.url.isNotEmpty()) juce::URL(update.url).launchInDefaultBrowser();
+        else if (update.state != UpdateStatus::checking && checkUpdate) checkUpdate();
+    }
     else for (size_t i = 0; i < bpmValues.size(); ++i) if (chip(i).contains(p)) proc.bpm = bpmValues[i];
     if (changed) changed();
     repaint();
@@ -724,7 +777,7 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     for (int i = 0; i < (int) ccp::ScaleType::count; ++i) scaleBox.addItem(utf8(ccp::scaleName((ccp::ScaleType) i)), i + 2);
     for (int i = 0; i < (int) mc::Style::count; ++i) styleBox.addItem(utf8(mc::styleName((mc::Style) i)), i + 1);
     for (int i = 0; i < (int) mc::Vibe::count; ++i) vibeBox.addItem(utf8(mc::vibeName((mc::Vibe) i)), i + 1);
-    for (int id : Synth::shownPresets) soundBox.addItem(Synth::presetName(id), id + 1);   // id stays the preset id + 1
+    for (int k = 0; k < Sampler::kitCount; ++k) soundBox.addItem(Sampler::kit(k).name, k + 1);
     auto onSetting = [this] {
         auto& s = proc.settings();
         s.key = keyBox.getSelectedId() - 2;      // id 1 = PADRÃO (-1)
@@ -737,7 +790,7 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     vibeBox.onChange = [this] { proc.setVibe((mc::Vibe) (vibeBox.getSelectedId() - 1)); };
     content.addAndMakeVisible(vibeBox);
     // changing the sound only changes the preview instrument: the notes, history and MIDI stay as they are
-    soundBox.onChange = [this] { proc.preset = soundBox.getSelectedId() - 1; soundBox.setTooltip(tone::get(proc.preset).description); };
+    soundBox.onChange = [this] { proc.kit = soundBox.getSelectedId() - 1; soundBox.setTooltip(Sampler::kit(proc.kit).description); };
     content.addAndMakeVisible(soundBox);
     content.addAndMakeVisible(roll);
 
@@ -766,18 +819,30 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     gen.onClick = [this] { proc.generateAll(); };
     save.onClick = [this] { saveMidi(); };
     dragBtn.onClick = [this] { showHint(utf8("Arraste este bot\xc3\xa3o para a sua DAW")); };
-    dragBtn.files = [this] { return writeMidiFiles(juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("MelodyCode"), "Melody Code"); };
+    dragBtn.files = [this] {
+        auto list = writeMidiFiles(juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("MelodyCode"), "Melody Code");
+        if (!proc.dragAllLayers.load()) list.removeRange(1, list.size() - 1);   // melody only
+        return list;
+    };
+    dragWav.onClick = [this] { showHint(utf8("Arraste este bot\xc3\xa3o para a sua DAW")); };
+    dragWav.files = [this] {
+        const auto f = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("MelodyCode")
+                           .getChildFile(proc.dragAllLayers.load() ? "Melody Code - Full.wav" : "Melody Code - Melody.wav");
+        f.getParentDirectory().createDirectory();
+        return proc.renderWav(f, proc.dragAllLayers.load()) ? juce::StringArray(f.getFullPathName()) : juce::StringArray();
+    };
     historyBtn.onClick = [this] {
         juce::PopupMenu m;
         for (int i = 0; i < proc.historySize(); ++i) m.addItem(i + 1, proc.historyLabel(i));
         m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(historyBtn), [this](int r) { if (r > 0) proc.restoreHistory(r - 1); });
     };
-    for (auto* b : std::initializer_list<juce::Button*> { &play, &vari, &newMel, &gen, &historyBtn, &save, &dragBtn }) {
+    for (auto* b : std::initializer_list<juce::Button*> { &play, &vari, &newMel, &gen, &historyBtn, &save, &dragBtn, &dragWav }) {
         b->setMouseCursor(juce::MouseCursor::PointingHandCursor);
         content.addAndMakeVisible(b);
     }
 
     gear.onClick = [this] { openSettings(); };
+    checkForUpdates(true);   // silent: only lights the dot on the gear
     content.addAndMakeVisible(gear);
     addChildComponent(overlay);
 
@@ -792,6 +857,7 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
 }
 
 MelodyCodeEditor::~MelodyCodeEditor() {
+    updateChecker.cancelAndWait();
     proc.removeChangeListener(this);
     setLookAndFeel(nullptr);
 }
@@ -802,7 +868,7 @@ void MelodyCodeEditor::syncControls() {
     scaleBox.setSelectedId(s.scale + 2, juce::dontSendNotification);
     styleBox.setSelectedId((int) s.style + 1, juce::dontSendNotification);
     vibeBox.setSelectedId((int) s.vibe + 1, juce::dontSendNotification);
-    soundBox.setSelectedId(proc.preset + 1, juce::dontSendNotification);
+    soundBox.setSelectedId(proc.kit + 1, juce::dontSendNotification);
     role.setSelected((int) s.role);
     density.setSelected((int) s.density);
     range.setSelected((int) s.range);
@@ -864,9 +930,24 @@ void MelodyCodeEditor::saveMidi() {
 }
 
 void MelodyCodeEditor::openSettings() {
-    auto panel = std::make_unique<SettingsPanel>(proc, [this] { overlay.dismiss(); }, [this] { bpm.setValue(proc.bpm, juce::dontSendNotification); content.repaint(); });
+    auto panel = std::make_unique<SettingsPanel>(proc, update, [this] { overlay.dismiss(); }, [this] { bpm.setValue(proc.bpm, juce::dontSendNotification); content.repaint(); },
+                                                 [this] { checkForUpdates(false); });
     overlay.present(*this, std::move(panel), (float) getWidth() / (float) Theme::width);
     overlay.grabKeyboardFocus();
+}
+
+void MelodyCodeEditor::checkForUpdates(bool silent) {
+    if (updateChecker.isChecking()) return;
+    if (!silent) update.state = UpdateStatus::checking;
+    updateChecker.start(JucePlugin_VersionString, [safe = juce::Component::SafePointer<MelodyCodeEditor>(this), silent](UpdateChecker::Result r) {
+        if (safe == nullptr) return;
+        auto& u = safe->update;
+        if (r.succeeded) { u.state = r.updateAvailable ? UpdateStatus::available : UpdateStatus::upToDate; u.latest = r.latestVersion; u.url = r.downloadUrl; }
+        else if (!silent) u.state = UpdateStatus::failed;
+        safe->gear.dot = u.state == UpdateStatus::available;
+        safe->gear.repaint();
+        safe->overlay.repaint();
+    });
 }
 
 void MelodyCodeEditor::paint(juce::Graphics& g) { g.fillAll(Theme::bg); }
@@ -900,9 +981,9 @@ void MelodyCodeEditor::layout() {
         historyBtn.setBounds(x, L::ctl2Y, w, 70);
     }
     {
-        const int gap = 10, unit = (W - 6 * gap) / 7;
+        const int gap = 10, unit = (W - 7 * gap) / 8;
         int x = L::pad;
-        for (auto* b : std::initializer_list<juce::Button*> { &play, &vari, &newMel, &gen, &dragBtn, &save }) {
+        for (auto* b : std::initializer_list<juce::Button*> { &play, &vari, &newMel, &gen, &dragBtn, &dragWav, &save }) {
             const int w = b == &gen ? unit * 2 + gap : unit;
             b->setBounds(x, L::actY, w, 56);
             x += w + gap;

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MelodyCode VERSION 1.8.0 LANGUAGES C CXX)
+project(MelodyCode VERSION 1.0.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(APPLE)
@@ -52,8 +52,12 @@ if(TARGET juce::juce_audio_utils)
   Source/PluginProcessor.cpp Source/PluginProcessor.h
   Source/PluginEditor.cpp Source/PluginEditor.h
   Source/Synth.cpp Source/Synth.h Source/Tone.cpp Source/Tone.h
+  Source/Sampler.cpp Source/Sampler.h Source/UpdateChecker.cpp Source/UpdateChecker.h
   Source/EmbeddedFonts.cpp Source/EmbeddedFonts.h)
- target_link_libraries(MelodyCode PRIVATE melodycode_core juce::juce_audio_utils juce::juce_audio_processors juce::juce_gui_basics
+ file(GLOB MC_SAMPLES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Assets/Samples/*.ogg")
+ juce_add_binary_data(melodycode_samples SOURCES ${MC_SAMPLES})
+ set_target_properties(melodycode_samples PROPERTIES POSITION_INDEPENDENT_CODE ON)
+ target_link_libraries(MelodyCode PRIVATE melodycode_samples melodycode_core juce::juce_audio_utils juce::juce_audio_processors juce::juce_gui_basics
   PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
  target_compile_definitions(MelodyCode PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_DIRECT2D=0 JUCE_VST3_CAN_REPLACE_VST2=0
   JUCE_DISPLAY_SPLASH_SCREEN=0)

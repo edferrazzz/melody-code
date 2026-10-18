@@ -1,0 +1,9 @@
+Melody Code - sample credits
+
+Piano: Salamander Grand Piano V3 by Alexander Holm, CC BY 3.0
+  https://archive.org/details/SalamanderGrandPianoV3 (via @audio-samples/piano-mp3)
+Nylon guitar, acoustic guitar, electric bass, harp, violin, cello: tonejs-instruments by Nicholaus P. Brosowsky
+  and the original sample authors, CC BY 3.0 - https://github.com/nbrosowsky/tonejs-instruments
+
+The samples were trimmed, level matched, looped and re-encoded by tools/build_samples.py.
+License: https://creativecommons.org/licenses/by/3.0/

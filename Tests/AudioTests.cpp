@@ -1,6 +1,8 @@
+#include <juce_audio_formats/juce_audio_formats.h>
 #include "PluginProcessor.h"
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <chrono>
 #include <algorithm>
 #include <array>
@@ -160,12 +162,32 @@ int main() {
     juce::ScopedJuceInitialiser_GUI init;
     MelodyCodeProcessor p;
     p.prepareToPlay(48000.0, 512);
+    // MC_DEMO_DIR=<folder>: write one full-mix WAV per kit (listening demos) and stop
+    if (const char* dir = std::getenv("MC_DEMO_DIR")) {
+        const mc::Style styles[] { mc::Style::rnb, mc::Style::pop, mc::Style::trap, mc::Style::afrobeats, mc::Style::reggaeton, mc::Style::funkBR, mc::Style::house };
+        const int tempos[] { 90, 110, 140, 104, 95, 130, 124 };
+        for (int k = 0; k < Sampler::kitCount; ++k) {
+            p.kit = k; p.settings().style = styles[k]; p.settings().bars = 8; p.bpm = tempos[k];
+            p.setVibe(mc::Vibe::clean); p.generateAll();
+            p.renderWav(juce::File(dir).getChildFile(juce::String(k + 1) + " " + Sampler::kit(k).name + " - " + mc::styleName(styles[k]) + ".wav"), true);
+        }
+        return 0;
+    }
+    // MC_SNAPSHOT=<png>: picture of the editor (and of the settings panel next to it)
+    if (const char* shot = std::getenv("MC_SNAPSHOT")) {
+        std::unique_ptr<juce::AudioProcessorEditor> ed(p.createEditor());
+        auto img = ed->createComponentSnapshot(ed->getLocalBounds(), true, 1.0f);
+        juce::PNGImageFormat png;
+        juce::File file { juce::String(shot) }; file.deleteFile(); juce::FileOutputStream out(file);
+        png.writeImageToStream(img, out);
+        return 0;
+    }
     int failures = 0;
     juce::AudioBuffer<float> buf(2, 512);
     juce::MidiBuffer midi;
     for (int style = 0; style < (int) mc::Style::count; ++style) {
         p.settings().style = (mc::Style) style;
-        p.preset = style % Synth::presetCount;
+        p.kit = style % Sampler::kitCount;
         p.setVibe((mc::Vibe) (style % (int) mc::Vibe::count));
         p.settings().feel = (mc::Feel) (style % 3);
         p.generateAll();
@@ -186,14 +208,14 @@ int main() {
         for (const auto m : midi) if (m.getMessage().isNoteOff()) ++offs;
         const double rms = std::sqrt(sumSq / n);
         const double db = 20 * std::log10(rms + 1e-12);
-        std::printf("%-8s %-10s %-10s rms %.1f dB peak %.2f midi on %d off %d\n", mc::styleName((mc::Style) style), Synth::presetName(p.preset), mc::vibeName((mc::Vibe) (style % 5)), db, peak, ons, offs);
+        std::printf("%-8s %-10s %-10s rms %.1f dB peak %.2f midi on %d off %d\n", mc::styleName((mc::Style) style), Sampler::kit(p.kit).name, mc::vibeName((mc::Vibe) (style % 5)), db, peak, ons, offs);
         if (!finite || db < -40 || peak > 0.95 || ons == 0 || offs < ons) ++failures;
     }
     // every sound through every vibe on the same notes: no clipping, nothing silent
     p.settings().style = mc::Style::pop; p.generateAll();
-    for (int pr = 0; pr < Synth::presetCount; ++pr)
+    for (int pr = 0; pr < Sampler::kitCount; ++pr)
         for (int v = 0; v < (int) mc::Vibe::count; ++v) {
-            p.preset = pr; p.setVibe((mc::Vibe) v); p.setPlaying(true);
+            p.kit = pr; p.setVibe((mc::Vibe) v); p.setPlaying(true);
             double sumSq = 0, peak = 0; long n = 0;
             for (int b = 0; b < 48000 * 6 / 512; ++b) {
                 p.processBlock(buf, midi);
@@ -201,9 +223,21 @@ int main() {
             }
             p.setPlaying(false); p.processBlock(buf, midi);
             const double db = 20 * std::log10(std::sqrt(sumSq / n) + 1e-12);
-            std::printf("  %-7s %-10s rms %5.1f dB peak %.2f\n", Synth::presetName(pr), mc::vibeName((mc::Vibe) v), db, peak);
+            std::printf("  %-15s %-10s rms %5.1f dB peak %.2f\n", Sampler::kit(pr).name, mc::vibeName((mc::Vibe) v), db, peak);
             if (db < -40 || peak > 0.95) ++failures;
         }
+    // the WAV export: one loop, audible, no clipping
+    {
+        const auto f = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("mc-test.wav");
+        const bool ok = p.renderWav(f, true);
+        juce::WavAudioFormat wav;
+        std::unique_ptr<juce::AudioFormatReader> r(ok ? wav.createReaderFor(f.createInputStream().release(), true) : nullptr);
+        float hi = 0;
+        if (r) { juce::Range<float> lv[2]; r->readMaxLevels(0, r->lengthInSamples, lv, 2); hi = juce::jmax(lv[0].getEnd(), -lv[0].getStart(), lv[1].getEnd(), -lv[1].getStart()); }
+        std::printf("  wav export: %s, %d samples, peak %.2f\n", ok ? "ok" : "failed", r ? (int) r->lengthInSamples : 0, (double) hi);
+        if (!r || hi < 0.02f || hi > 0.95f) ++failures;
+        f.deleteFile();
+    }
     failures += toneTests();
     std::printf("%s\n", failures ? "FAILED" : "OK");
     return failures;

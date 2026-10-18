@@ -133,7 +133,7 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     }
     wasRunning = running;
 
-    synth.setPreset(preset);
+    synth.setKit(kit);
     synth.setFx(fxFor((mc::Vibe) soundVibe.load()));
     synth.setLevels(bassLevel, melodyLevel);
     synth.setTempo(tempo);
@@ -186,7 +186,7 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         if (at > done) { synth.render(l + done, r + done, at - done); done = at; }
         const int lenSamples = (int) (e.note.length * samplesPerTick);
         // chords sit under the melody: same instrument, softer
-        synth.noteOn(e.note.pitch, e.layer == 2 ? e.note.velocity * 3 / 5 : e.note.velocity, lenSamples, e.sub);
+        synth.noteOn(e.note.pitch, e.layer == 2 ? e.note.velocity * 3 / 5 : e.note.velocity, lenSamples, e.sub, e.layer);
         if (sendMidi && running) {
             const int ch = e.sub ? 2 : e.layer == 2 ? 3 : 1;
             for (auto it = midiOffs.begin(); it != midiOffs.end(); ++it)   // retrigger: close the old note first
@@ -200,18 +200,59 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     if (done < n) synth.render(l + done, r + done, n - done);
 }
 
+bool MelodyCodeProcessor::renderWav(const juce::File& file, bool allLayers) {
+    const auto p = shown;
+    const double rate = 44100.0, tempo = bpm;
+    const double samplesPerTick = rate * 60.0 / tempo / mc::ppq;
+    const int loopLen = (int) std::round(p.lengthTicks() * samplesPerTick);
+    if (loopLen <= 0) return false;
+    Synth s;
+    s.prepare(rate);
+    s.setKit(kit);
+    s.setFx(fxFor(p.settings.vibe));
+    s.setLevels(bassLevel, melodyLevel);
+    s.setTempo(tempo);
+    struct Ev { int at; mc::Note note; int layer; };
+    std::vector<Ev> evs;
+    for (int pass = 0; pass < 2; ++pass) {   // play the loop twice and keep the second: its start carries the first pass's tail
+        auto add = [&](const std::vector<mc::Note>& notes, int layer) {
+            for (const auto& n : notes) evs.push_back({ pass * loopLen + (int) (n.start * samplesPerTick), n, layer });
+        };
+        add(p.melody, 0);
+        if (allLayers) { add(p.bass, 1); add(p.chords, 2); }
+    }
+    std::sort(evs.begin(), evs.end(), [](const Ev& a, const Ev& b) { return a.at < b.at; });
+    juce::AudioBuffer<float> buf(2, loopLen * 2);
+    buf.clear();
+    int done = 0;
+    auto run = [&](int to) { if (to > done) { s.render(buf.getWritePointer(0, done), buf.getWritePointer(1, done), to - done); done = to; } };
+    for (const auto& e : evs) {
+        run(juce::jmin(e.at, loopLen * 2));
+        s.noteOn(e.note.pitch, e.layer == 2 ? e.note.velocity * 3 / 5 : e.note.velocity, (int) (e.note.length * samplesPerTick), e.layer == 1, e.layer);
+    }
+    run(loopLen * 2);
+    file.deleteFile();
+    std::unique_ptr<juce::OutputStream> out(file.createOutputStream().release());
+    if (!out) return false;
+    juce::WavAudioFormat wav;
+    std::unique_ptr<juce::AudioFormatWriter> w(wav.createWriterFor(out.get(), rate, 2, 24, {}, 0));
+    if (!w) return false;
+    out.release();
+    return w->writeFromAudioSampleBuffer(buf, loopLen, loopLen);
+}
+
 juce::AudioProcessorEditor* MelodyCodeProcessor::createEditor() { return new MelodyCodeEditor(*this); }
 
 void MelodyCodeProcessor::getStateInformation(juce::MemoryBlock& dest) {
     juce::XmlElement root("MelodyCode");
     const auto& s = current;
-    root.setAttribute("version", 4);
+    root.setAttribute("version", 5);
     root.setAttribute("key", s.key); root.setAttribute("scale", s.scale); root.setAttribute("style", (int) s.style);
     root.setAttribute("vibe", (int) s.vibe); root.setAttribute("feel", (int) s.feel); root.setAttribute("role", (int) s.role);
     root.setAttribute("density", (int) s.density); root.setAttribute("range", (int) s.range); root.setAttribute("bars", s.bars);
     root.setAttribute("bpm", bpm); root.setAttribute("sync", syncToHost.load()); root.setAttribute("midiOut", midiOut.load());
     root.setAttribute("resolvedStyle", (int) shown.style); root.setAttribute("resolvedKey", shown.key); root.setAttribute("resolvedScale", (int) shown.scale);
-    root.setAttribute("preset", preset); root.setAttribute("bassLevel", bassLevel); root.setAttribute("melodyLevel", melodyLevel);
+    root.setAttribute("kit", kit); root.setAttribute("dragAll", dragAllLayers.load()); root.setAttribute("bassLevel", bassLevel); root.setAttribute("melodyLevel", melodyLevel);
     for (int i = 0; i < shown.bars(); ++i) {
         const auto& c = shown.progression.chords[(size_t) i];
         auto* x = root.createNewChildElement("chord");
@@ -240,7 +281,7 @@ void MelodyCodeProcessor::setStateInformation(const void* data, int size) {
     s.range = (mc::Range) clampEnum("range", (int) mc::Range::count, 1);
     s.bars = xml->getIntAttribute("bars", 4);
     if (s.bars != 2 && s.bars != 4 && s.bars != 8) s.bars = 4;
-    bpm = juce::jlimit(60, 180, xml->getIntAttribute("bpm", 120)); preset = Synth::shownPreset(clampEnum("preset", Synth::presetCount, 0));
+    bpm = juce::jlimit(60, 180, xml->getIntAttribute("bpm", 120)); kit = clampEnum("kit", Sampler::kitCount, 0); dragAllLayers = xml->getBoolAttribute("dragAll", false);
     bassLevel = (float) xml->getDoubleAttribute("bassLevel", 0.7); melodyLevel = (float) xml->getDoubleAttribute("melodyLevel", 0.8);
     syncToHost = xml->getBoolAttribute("sync", true); midiOut = xml->getBoolAttribute("midiOut", true);
     mc::Pattern p;

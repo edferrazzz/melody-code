@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include "Tone.h"
+#include "Sampler.h"
 
 // Preview synth. One polyphonic instrument plays both the melody and the low "bass" notes, so the
 // bass is the same timbre an octave or two down. Each preset (Tone.h) picks a family voice and its
@@ -33,10 +34,13 @@ public:
     void setPreset(int p) { preset = juce::jlimit(0, presetCount - 1, p); }
     // Optional macro override for the current preset (tone::vary); nullptr returns to the preset's own macros.
     void setMacros(const tone::Macros* m) { if (m) { macroOverride = *m; useOverride = true; } else useOverride = false; }
-    void setLevels(float bass, float melody) { bassLevel = bass; melodyLevel = melody; }
+    void setLevels(float bass, float melody) { bassLevel = bass; melodyLevel = melody; sampler.setLevels(bass, melody); }
+    // A sample kit (Sampler.h) replaces the synth voices; -1 goes back to the synth presets.
+    void setKit(int k) { kit = k; if (k >= 0) sampler.setKit(k); }
     void setTempo(double bpm) { beatSeconds = 60.0 / juce::jmax(30.0, bpm); }
     void setFx(const Fx& f) { fxTarget = f; }
-    void noteOn(int pitch, int velocity, int lengthSamples, bool isBass);
+    // layer: 0 melody, 1 bass, 2 chords (only the sample kits tell the layers apart)
+    void noteOn(int pitch, int velocity, int lengthSamples, bool isBass, int layer = -1);
     void allNotesOff();             // short fade, no click
     void render(float* left, float* right, int numSamples);
     int activeVoices() const;
@@ -66,6 +70,8 @@ private:
     void processFx(float& l, float& r);
     double sr { 44100.0 }, beatSeconds { 0.5 };
     int preset { keys };
+    int kit { -1 };
+    Sampler sampler;
     Fx fx, fxTarget;
     std::array<Voice, 32> voices {};
     float bassLevel { 0.8f }, melodyLevel { 0.8f };

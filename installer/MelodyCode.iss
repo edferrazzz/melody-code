@@ -1,6 +1,6 @@
 ; Windows installer: Standalone in Program Files, VST3 in Common Files\VST3.
 #ifndef AppVersion
-  #define AppVersion "1.8.0"
+  #define AppVersion "1.0.0"
 #endif
 #ifndef DistDir
   #define DistDir "..\dist"
@@ -35,6 +35,7 @@ Name: "desktopicon"; Description: "Criar atalho na área de trabalho"
 [Files]
 Source: "{#DistDir}\Melody Code.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#DistDir}\Melody Code.vst3\*"; DestDir: "{commoncf64}\VST3\Melody Code.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\Assets\Samples\LICENSES.txt"; DestDir: "{app}"; DestName: "Sample credits.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Melody Code"; Filename: "{app}\Melody Code.exe"
