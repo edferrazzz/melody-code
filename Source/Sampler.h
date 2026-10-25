@@ -7,8 +7,8 @@
 class Sampler {
 public:
     enum Inst { piano, nylon, guitar, ebass, harp, violin, cello, instCount };
-    struct Kit { const char* name; const char* description; Inst melody, chords, bass; bool dark; };
-    static constexpr int kitCount = 7;
+    struct Kit { const char* name; const char* description; Inst melody, chords, bass; bool dark; int synth { -1 }; };
+    static constexpr int kitCount = 9;
     static const Kit& kit(int);
 
     void prepare(double sampleRate);

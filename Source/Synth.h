@@ -36,7 +36,11 @@ public:
     void setMacros(const tone::Macros* m) { if (m) { macroOverride = *m; useOverride = true; } else useOverride = false; }
     void setLevels(float bass, float melody) { bassLevel = bass; melodyLevel = melody; sampler.setLevels(bass, melody); }
     // A sample kit (Sampler.h) replaces the synth voices; -1 goes back to the synth presets.
-    void setKit(int k) { kit = k; if (k >= 0) sampler.setKit(k); }
+    // A synthesized kit (Kit::synth) plays a Tone preset on the synth voices instead.
+    void setKit(int k) {
+        if (k >= 0 && Sampler::kit(k).synth >= 0) { kit = -1; setPreset(Sampler::kit(k).synth); return; }
+        kit = k; if (k >= 0) sampler.setKit(k);
+    }
     void setTempo(double bpm) { beatSeconds = 60.0 / juce::jmax(30.0, bpm); }
     void setFx(const Fx& f) { fxTarget = f; }
     // layer: 0 melody, 1 bass, 2 chords (only the sample kits tell the layers apart)

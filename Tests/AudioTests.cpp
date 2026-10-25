@@ -164,8 +164,8 @@ int main() {
     p.prepareToPlay(48000.0, 512);
     // MC_DEMO_DIR=<folder>: write one full-mix WAV per kit (listening demos) and stop
     if (const char* dir = std::getenv("MC_DEMO_DIR")) {
-        const mc::Style styles[] { mc::Style::rnb, mc::Style::pop, mc::Style::trap, mc::Style::afrobeats, mc::Style::reggaeton, mc::Style::funkBR, mc::Style::house };
-        const int tempos[] { 90, 110, 140, 104, 95, 130, 124 };
+        const mc::Style styles[] { mc::Style::rnb, mc::Style::pop, mc::Style::trap, mc::Style::afrobeats, mc::Style::reggaeton, mc::Style::funkBR, mc::Style::house, mc::Style::lofi, mc::Style::drill };
+        const int tempos[] { 90, 110, 140, 104, 95, 130, 124, 85, 142 };
         for (int k = 0; k < Sampler::kitCount; ++k) {
             p.kit = k; p.settings().style = styles[k]; p.settings().bars = 8; p.bpm = tempos[k];
             p.setVibe(mc::Vibe::clean); p.generateAll();

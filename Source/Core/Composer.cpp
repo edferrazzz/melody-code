@@ -408,8 +408,8 @@ std::vector<Unit> plan(const Context& ctx, Rng& r, int units) {
     if (units == 1) return { U_::cadence };
     if (units == 2) return { U_::statement, U_::cadence };
     if (ctx.hook) {
-        if (units == 4) return { U_::statement, U_::statement, U_::develop, U_::cadence };
-        return { U_::statement, U_::statement, U_::develop, U_::open, U_::statement, U_::statement, U_::climax, U_::cadence };
+        if (units == 4) return { U_::statement, U_::statement, U_::statement, U_::cadence };
+        return { U_::statement, U_::statement, U_::statement, U_::open, U_::statement, U_::statement, U_::develop, U_::cadence };
     }
     const auto& forms = ctx.g->forms;
     const char* a = forms[(size_t) D(r, 0, (int) forms.size() - 1)];

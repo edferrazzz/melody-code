@@ -18,13 +18,15 @@ public:
     juce::Font getComboBoxFont(juce::ComboBox&) override { return Theme::font(15.0f, true); }
     void positionComboBoxText(juce::ComboBox&, juce::Label&) override;
     juce::Font getPopupMenuFont() override { return Theme::font(15.0f, true); }
+    juce::Rectangle<int> getTooltipBounds(const juce::String&, juce::Point<int>, juce::Rectangle<int>) override;
+    void drawTooltip(juce::Graphics&, const juce::String&, int, int) override;
     void drawPopupMenuBackground(juce::Graphics&, int, int) override;
     void drawLinearSlider(juce::Graphics&, int, int, int, int, float, float, float, juce::Slider::SliderStyle, juce::Slider&) override;
 };
 
-class Segmented : public juce::Component {
+class Segmented : public juce::Component, public juce::SettableTooltipClient {
 public:
-    Segmented(juce::StringArray options);
+    Segmented(std::initializer_list<const char*> options);   // UTF-8 labels
     void setSelected(int i) { selected = i; repaint(); }
     int getSelected() const { return selected; }
     std::function<void(int)> onChange;
@@ -181,8 +183,9 @@ private:
     Content content { *this };
     juce::ComboBox keyBox, scaleBox, styleBox, vibeBox, soundBox;
     PianoRoll roll { proc };
-    Segmented role { { "LEAD", "HOOK", "COUNTER" } }, feel { { "STRAIGHT", "SWING", "TRIPLET" } }, density { { "LOW", "MID", "HIGH" } },
-        range { { "LOW", "MID", "HIGH" } }, bars { { "2", "4", "8" } };
+    Segmented role { "L\xc3\x8d" "DER", "REFR\xc3\x83O", "RESPOSTA" }, feel { "RETO", "SWING", "TERCINA" }, density { "BAIXA", "M\xc3\x89" "DIA", "ALTA" },
+        range { "GRAVE", "M\xc3\x89" "DIO", "AGUDO" }, bars { "2", "4", "8" };
+    juce::TooltipWindow tooltips { this, 650 };
     juce::Slider bpm, bassVol, melVol;
     ActionButton play { "OUVIR", Icon::play }, vari { juce::String::fromUTF8("VARIAÇÃO"), Icon::variation },
         newMel { "NOVA MELODIA", Icon::random }, gen { "GERAR", Icon::none, true },

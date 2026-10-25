@@ -162,6 +162,95 @@ const Engine& afrobeats() {
     };
     return e;
 }
+
+const Engine& orchestral() {
+    static const Engine e {
+        "ORQUESTRAL", "broad cinematic theme: long singing notes, stepwise climb to one big peak, octaves and sixths underneath",
+        { S::naturalMinor, S::harmonicMinor, S::major, S::naturalMinor },
+        { { { 0, 5, 2, 6 }, { tr, tr, tr, tr } }, { { 0, 3, 5, 4 }, { tr, tr, a9, tr } },
+          { { 0, 5, 3, 4 }, { tr, a9, tr, tr } }, { { 5, 3, 0, 6 }, { tr, tr, tr, tr } } },
+        { { { 0, 4, 5, 3 }, { tr, tr, tr, a9 } }, { { 3, 0, 4, 5 }, { a9, tr, su2, tr } }, { { 0, 5, 3, 4 }, { tr, tr, a9, tr } } },
+        { { 0, H, 0, H }, { 0, 0, 0, 0 }, { 0, 0, 8, 0 } },
+        { { { 0, 8 }, { 8, 8 } },
+          { { 0, 6 }, { 6, 2 }, { 8, 8 } },
+          { { 0, 4 }, { 4, 4 }, { 8, 8 } },
+          { { 0, 12 }, { 12, 2 }, { 14, 2 } },
+          { { 0, 2 }, { 2, 2 }, { 4, 12 } } },
+        { { { 0, 16 } }, { { 0, 8 }, { 8, 8 } } },
+        2.6, .12, .1, .2, .7, .4, .95, .55, .25,
+        { 4, 3, 1, 1, 1 },
+        { "SQXC", "SDXC", "SQDC" },
+        { .45, { 12, 8, 9, 7 }, .3, 3 },
+        { 1.5, 4.5, .0, .3, .02, .3, .4 }, 56,
+    };
+    return e;
+}
+
+const Engine& drill() {
+    static const Engine e {
+        "DRILL", "dark sliding minor motif: off-beat stabs, gaps that leave room for the 808, a half-step that bites",
+        { S::harmonicMinor, S::phrygian, S::naturalMinor },
+        { { { 0, 5, 0, 5 }, { tr, tr, tr, tr } }, { { 0, 3, 0, 3 }, { tr, tr, tr, tr } },
+          { { 0, 3, 5, 4 }, { tr, tr, tr, tr } }, { { 0, 0, 5, 3 }, { tr, tr, tr, tr } } },
+        { { { 5, 4, 5, 4 }, { tr, tr, tr, tr } }, { { 5, 3, 4, 4 }, { tr, tr, tr, tr } } },
+        { { 0, H, 0, H }, { 0, H, 0, 8 } },
+        { { { 0, 2 }, { 3, 2 }, { 6, 1 }, { 9, 3 }, { 14, 2 } },
+          { { 0, 3 }, { 4, 1 }, { 6, 2 }, { 10, 4 } },
+          { { 2, 2 }, { 5, 1 }, { 6, 3 }, { 11, 1 }, { 12, 3 } },
+          { { 0, 1 }, { 1, 1 }, { 2, 2 }, { 6, 2 }, { 9, 1 }, { 10, 3 } },
+          { { 0, 4 }, { 6, 2 }, { 8, 1 }, { 11, 3 } } },
+        { { { 0, 16 } }, { { 0, 6 }, { 6, 10 } } },
+        4.0, .7, .45, .5, .85, .35, .45, .3, .2,
+        { 1, 1, 3, 2, 2 },
+        { "SSDC", "SOSC", "SQSC" },
+        { .15, { 12 }, .1, 2 },
+        { 2.5, 6.5, .35, .8, .25, .7, .6 }, 60,
+    };
+    return e;
+}
+
+const Engine& mpb() {
+    static const Engine e {
+        "MPB", "bossa-flavoured singing line: syncopated phrases that float over the beat, chromatic approaches, rich seventh chords",
+        { S::major, S::dorian, S::mixolydian, S::naturalMinor },
+        { { { 0, 3, 5, 4 }, { s7, s7, s7, s7 } }, { { 0, 3, 0, 4 }, { n9, s7, s7, s7 } }, { { 0, 5, 3, 4 }, { s7, s7, s7, s7 } } },
+        { { { 1, 4, 0, 5 }, { s7, s7, s7, s7 } }, { { 0, 5, 1, 4 }, { s7, s7, s7, s7 } },
+          { { 0, 1, 2, 1 }, { n9, s7, s7, s7 } }, { { 3, 2, 1, 4 }, { s7, s7, s7, s7 } } },
+        { { 0, -2, 0, -2 }, { 0, 0, 0, 0 }, { 0, -1, 0, 0 } },
+        { { { 0, 3 }, { 3, 3 }, { 6, 4 }, { 10, 2 }, { 12, 4 } },
+          { { 2, 2 }, { 4, 3 }, { 7, 3 }, { 10, 6 } },
+          { { 0, 2 }, { 2, 1 }, { 3, 3 }, { 6, 2 }, { 8, 3 }, { 11, 5 } },
+          { { 1, 2 }, { 3, 4 }, { 8, 2 }, { 10, 2 }, { 12, 4 } } },
+        { { { 0, 3 }, { 3, 3 }, { 6, 4 }, { 10, 3 }, { 13, 3 } }, { { 0, 2 }, { 3, 2 }, { 6, 2 }, { 10, 2 }, { 13, 3 } } },
+        4.4, .65, .3, .3, .6, .4, .8, .45, .4,
+        { 3, 1, 2, 3, 1 },
+        { "SQDC", "SOSC", "SDOC" },
+        { .3, { 3, 4, 8, 9 }, .2, 2 },
+        { 2.5, 6.5, .35, .8, .08, .45, .35 }, 56,
+    };
+    return e;
+}
+
+const Engine& lofi() {
+    static const Engine e {
+        "LO-FI", "lazy laid-back phrases behind the beat, lots of air, ninth chords, a sigh at the end of the loop",
+        { S::dorian, S::naturalMinor, S::major },
+        { { { 0, 3, 6, 2 }, { n9, s7, s7, s7 } }, { { 0, 5, 3, 4 }, { s7, s7, n9, s7 } }, { { 0, 3, 0, 4 }, { n9, n9, s7, s7 } } },
+        { { { 1, 4, 0, 5 }, { s7, s7, n9, s7 } }, { { 3, 2, 1, 0 }, { s7, s7, s7, n9 } }, { { 3, 4, 2, 5 }, { n9, s7, s7, s7 } } },
+        { { 0, 0, 0, 0 }, { 0, -1, 0, -1 }, { 0, H, 0, H } },
+        { { { 2, 4 }, { 8, 2 }, { 10, 6 } },
+          { { 0, 6 }, { 7, 1 }, { 8, 4 } },
+          { { 3, 3 }, { 6, 2 }, { 12, 4 } },
+          { { 0, 2 }, { 2, 2 }, { 4, 6 }, { 14, 2 } } },
+        { { { 0, 12 }, { 12, 4 } }, { { 0, 16 } }, { { 0, 6 }, { 6, 10 } } },
+        3.0, .5, .2, .6, .7, .35, .85, .5, .3,
+        { 2, 1, 3, 2, 1 },
+        { "SOSC", "SDOC", "SQFC" },
+        { .35, { 3, 4, 8, 9 }, .3, 3 },
+        { 1.5, 5.0, .2, .65, .25, .7, .45 }, 52,
+    };
+    return e;
+}
 }
 
 const Engine& get(Style s) {
@@ -172,6 +261,10 @@ const Engine& get(Style s) {
         case Style::reggaeton: return reggaeton();
         case Style::house: return house();
         case Style::afrobeats: return afrobeats();
+        case Style::orchestral: return orchestral();
+        case Style::drill: return drill();
+        case Style::mpb: return mpb();
+        case Style::lofi: return lofi();
         default: return pop();
     }
 }

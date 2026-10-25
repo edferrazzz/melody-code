@@ -65,14 +65,17 @@ struct Bank {
 };
 const Bank& bank() { static Bank b; return b; }
 
+// Names and descriptions are UTF-8 (shown in Portuguese). synth >= 0: a synthesized kit, played by Synth with that Tone preset.
 const Sampler::Kit kits[Sampler::kitCount] {
-    { "DARK PIANO",      "Grand piano, soft and dark, in all three layers",          Sampler::piano, Sampler::piano,  Sampler::piano, true },
-    { "GUITAR",          "Nylon guitar melody, acoustic guitar chords, electric bass", Sampler::nylon, Sampler::guitar, Sampler::ebass, false },
-    { "CLASSICAL",       "Harp melody, violin chords, cello bass",                    Sampler::harp,  Sampler::violin, Sampler::cello, false },
-    { "PIANO & STRINGS", "Piano melody, violin chords, cello bass",                   Sampler::piano, Sampler::violin, Sampler::cello, true },
-    { "STRINGS",         "Violin melody over violin chords, cello bass",              Sampler::violin, Sampler::violin, Sampler::cello, false },
-    { "HARP & PIANO",    "Harp melody, soft piano chords, cello bass",                Sampler::harp,  Sampler::piano,  Sampler::cello, true },
-    { "ACOUSTIC",        "Acoustic guitar melody, piano chords, electric bass",       Sampler::guitar, Sampler::piano, Sampler::ebass, false },
+    { "PIANO SOMBRIO",   "Piano de cauda suave e escuro nas tr\xc3\xaas camadas",              Sampler::piano, Sampler::piano,  Sampler::piano, true },
+    { "VIOL\xc3\x83O",   "Melodia no viol\xc3\xa3o nylon, acordes no viol\xc3\xa3o a\xc3\xa7o, baixo el\xc3\xa9trico", Sampler::nylon, Sampler::guitar, Sampler::ebass, false },
+    { "CL\xc3\x81SSICO", "Melodia na harpa, acordes no violino, grave no cello",             Sampler::harp,  Sampler::violin, Sampler::cello, false },
+    { "PIANO & CORDAS",  "Melodia no piano, acordes no violino, grave no cello",             Sampler::piano, Sampler::violin, Sampler::cello, true },
+    { "CORDAS",          "Melodia e acordes no violino, grave no cello",                     Sampler::violin, Sampler::violin, Sampler::cello, false },
+    { "HARPA & PIANO",   "Melodia na harpa, acordes no piano, grave no cello",               Sampler::harp,  Sampler::piano,  Sampler::cello, true },
+    { "AC\xc3\x9aSTICO", "Melodia no viol\xc3\xa3o a\xc3\xa7o, acordes no piano, baixo el\xc3\xa9trico", Sampler::guitar, Sampler::piano, Sampler::ebass, false },
+    { "SYNTH KEYS",      "Piano el\xc3\xa9trico sintetizado, claro e com corpo",              Sampler::piano, Sampler::piano,  Sampler::piano, false, 0 },
+    { "SYNTH PLUCK",     "Pluck de onda quadrada sintetizado, ataque definido",              Sampler::piano, Sampler::piano,  Sampler::piano, false, 3 },
 };
 }
 

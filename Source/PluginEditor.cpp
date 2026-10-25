@@ -78,7 +78,32 @@ void MelodyLook::drawLinearSlider(juce::Graphics& g, int x, int y, int w, int h,
 }
 
 // ---------------------------------------------------------------- small widgets
-Segmented::Segmented(juce::StringArray o) : options(std::move(o)) { setMouseCursor(juce::MouseCursor::PointingHandCursor); }
+Segmented::Segmented(std::initializer_list<const char*> o) {
+    for (auto* x : o) options.add(juce::String::fromUTF8(x));
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+}
+
+// Hover explanations: a small dark card with the accent border, wrapped to a readable width.
+namespace { juce::TextLayout tooltipLayout(const juce::String& text) {
+    juce::AttributedString a; a.setJustification(juce::Justification::centredLeft);
+    a.append(text, Theme::font(13.0f), Theme::fg);
+    juce::TextLayout l; l.createLayoutWithBalancedLineLengths(a, 300.0f);
+    return l;
+} }
+
+juce::Rectangle<int> MelodyLook::getTooltipBounds(const juce::String& text, juce::Point<int> pos, juce::Rectangle<int> parent) {
+    const auto l = tooltipLayout(text);
+    const int w = (int) l.getWidth() + 28, h = (int) l.getHeight() + 20;
+    return juce::Rectangle<int>(pos.x > parent.getCentreX() ? pos.x - (w + 12) : pos.x + 12, pos.y > parent.getCentreY() ? pos.y - (h + 8) : pos.y + 18, w, h)
+        .constrainedWithin(parent);
+}
+
+void MelodyLook::drawTooltip(juce::Graphics& g, const juce::String& text, int w, int h) {
+    const auto r = juce::Rectangle<float>(0, 0, (float) w, (float) h);
+    g.setColour(Theme::panel2.darker(0.2f)); g.fillRoundedRectangle(r, 8);
+    g.setColour(Theme::acc.withAlpha(0.6f)); g.drawRoundedRectangle(r.reduced(0.5f), 8, 1);
+    tooltipLayout(text).draw(g, r.reduced(14, 10));
+}
 
 void Segmented::paint(juce::Graphics& g) {
     auto r = getLocalBounds().toFloat();
@@ -118,30 +143,33 @@ void drawIcon(juce::Graphics& g, Icon icon, juce::Rectangle<float> r, juce::Colo
             g.fillPath(p); break;
         }
         case Icon::stop: g.fillRoundedRectangle(r.reduced(w * 0.2f), 2.0f); break;
-        case Icon::variation: {   // a phrase and its echo: two wavy lines, the second a little different
-            auto wave = [&](float yy, float amp, float phase, float x0, float x1) {
-                juce::Path p;
-                for (int i = 0; i <= 20; ++i) {
-                    const float t = (float) i / 20.0f;
-                    const juce::Point<float> pt { x0 + t * (x1 - x0), yy - std::sin(t * 6.283f * 1.25f + phase) * amp };
-                    if (i == 0) p.startNewSubPath(pt); else p.lineTo(pt);
-                }
-                g.strokePath(p, stroke);
-            };
-            wave(y + h * 0.32f, h * 0.16f, 0.0f, x + 1, x + w - 1);
-            wave(y + h * 0.72f, h * 0.11f, 0.9f, x + w * 0.18f, x + w - 1);
+        case Icon::variation: {   // refresh: two arcs, each ending in an arrow head
+            const float rad = w * 0.36f;
+            const juce::PathStrokeType arc(1.9f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
+            for (int k = 0; k < 2; ++k) {
+                const float a0 = k ? 3.4f : 0.26f, a1 = a0 + 2.45f;   // radians, clockwise from 12 o'clock
+                juce::Path p; p.addCentredArc(cx, cy, rad, rad, 0, a0, a1, true);
+                g.strokePath(p, arc);
+                const juce::Point<float> tip { cx + rad * std::sin(a1), cy - rad * std::cos(a1) };
+                const float dir = a1 + juce::MathConstants<float>::halfPi;            // tangent, clockwise
+                const juce::Point<float> fwd { std::sin(dir), -std::cos(dir) }, side { -fwd.y, fwd.x };
+                juce::Path head;
+                head.addTriangle(tip + fwd * 3.2f, tip - fwd * 2.2f + side * 3.4f, tip - fwd * 2.2f - side * 3.4f);
+                g.fillPath(head);
+            }
             break;
         }
-        case Icon::random: {      // new melody: an eighth note with a plus
-            const float nx = x + w * 0.12f, ny = y + h * 0.68f;
-            g.fillEllipse(nx, ny, w * 0.36f, h * 0.27f);
-            g.fillRect(nx + w * 0.30f, y + h * 0.14f, 2.0f, h * 0.68f);
-            juce::Path flag;
-            flag.startNewSubPath(nx + w * 0.31f + 1, y + h * 0.14f);
-            flag.quadraticTo(nx + w * 0.62f, y + h * 0.26f, nx + w * 0.56f, y + h * 0.48f);
-            g.strokePath(flag, stroke);
-            g.drawLine(x + w * 0.80f, y + h * 0.04f, x + w * 0.80f, y + h * 0.40f, 1.8f);
-            g.drawLine(x + w * 0.62f, y + h * 0.22f, x + w * 0.98f, y + h * 0.22f, 1.8f);
+        case Icon::random: {      // new melody: two beamed eighth notes
+            const float hw = w * 0.30f, hh = h * 0.22f;
+            const float x1 = x + w * 0.06f, x2 = x + w * 0.56f, yb1 = y + h * 0.78f, yb2 = y + h * 0.70f;
+            g.fillEllipse(x1, yb1 - hh * 0.5f, hw, hh);
+            g.fillEllipse(x2, yb2 - hh * 0.5f, hw, hh);
+            const float s1 = x1 + hw - 1.6f, s2 = x2 + hw - 1.6f, top1 = y + h * 0.16f, top2 = y + h * 0.06f;
+            g.fillRect(s1, top1, 1.8f, yb1 - top1);
+            g.fillRect(s2, top2, 1.8f, yb2 - top2);
+            juce::Path beam;
+            beam.startNewSubPath(s1, top1); beam.lineTo(s2 + 1.8f, top2); beam.lineTo(s2 + 1.8f, top2 + 3.2f); beam.lineTo(s1, top1 + 3.2f); beam.closeSubPath();
+            g.fillPath(beam);
             break;
         }
         case Icon::sparkle: {     // generate: a four-point star and a small one
@@ -167,15 +195,12 @@ void drawIcon(juce::Graphics& g, Icon icon, juce::Rectangle<float> r, juce::Colo
             g.drawLine(x, y + h - 1, x + w, y + h - 1, 1.2f);
             break;
         }
-        case Icon::midi: {        // the 5-pin DIN socket
-            const auto c = r.reduced(1.0f);
-            g.drawEllipse(c, 1.6f);
-            const float rad = c.getWidth() * 0.30f;
-            for (int i = 0; i < 5; ++i) {
-                const float a = juce::MathConstants<float>::pi * (1.0f + 0.25f * (float) i);   // pins on the upper arc
-                g.fillEllipse(juce::Rectangle<float>(2.6f, 2.6f).withCentre({ cx + std::cos(a) * rad, cy + 1.5f + std::sin(a) * rad }));
-            }
-            g.fillRoundedRectangle(juce::Rectangle<float>(w * 0.18f, 2.6f).withCentre({ cx, c.getBottom() - 2.4f }), 1.0f);
+        case Icon::midi: {        // a small keyboard: three white keys, two black keys
+            const auto k = juce::Rectangle<float>(x + 0.5f, y + h * 0.1f, w - 1.0f, h * 0.8f);
+            g.drawRoundedRectangle(k, 2.0f, 1.6f);
+            const float kw = k.getWidth() / 3.0f;
+            for (int i = 1; i < 3; ++i) g.fillRect(k.getX() + kw * (float) i - 0.6f, k.getY() + k.getHeight() * 0.55f, 1.3f, k.getHeight() * 0.45f);
+            for (int i = 1; i < 3; ++i) g.fillRoundedRectangle(k.getX() + kw * (float) i - kw * 0.28f, k.getY(), kw * 0.56f, k.getHeight() * 0.58f, 1.0f);
             break;
         }
         case Icon::wave: {        // audio file: waveform bars
@@ -613,7 +638,7 @@ void PianoRoll::paint(juce::Graphics& g) {
     g.fillRect(0.0f, lane.getY(), all.getWidth(), lane.getHeight());
     g.setColour(Theme::quiet);
     g.setFont(Theme::font(11.0f, true));
-    g.drawText("BASS", juce::Rectangle<float>(0, lane.getY(), (float) keyW, lane.getHeight()), juce::Justification::centred);
+    g.drawText("GRAVE", juce::Rectangle<float>(0, lane.getY(), (float) keyW, lane.getHeight()), juce::Justification::centred);
     // chord names where each chord really starts (generated for the whole loop, not picked per bar)
     for (int b = 0; b < bars; ++b) {
         if (b > 0 && pat.progression.chords[(size_t) b].name == pat.progression.chords[(size_t) (b - 1)].name && pat.chordShift[(size_t) b] == 0) continue;
@@ -777,7 +802,7 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     for (int i = 0; i < (int) ccp::ScaleType::count; ++i) scaleBox.addItem(utf8(ccp::scaleName((ccp::ScaleType) i)), i + 2);
     for (int i = 0; i < (int) mc::Style::count; ++i) styleBox.addItem(utf8(mc::styleName((mc::Style) i)), i + 1);
     for (int i = 0; i < (int) mc::Vibe::count; ++i) vibeBox.addItem(utf8(mc::vibeName((mc::Vibe) i)), i + 1);
-    for (int k = 0; k < Sampler::kitCount; ++k) soundBox.addItem(Sampler::kit(k).name, k + 1);
+    for (int k = 0; k < Sampler::kitCount; ++k) soundBox.addItem(utf8(Sampler::kit(k).name), k + 1);
     auto onSetting = [this] {
         auto& s = proc.settings();
         s.key = keyBox.getSelectedId() - 2;      // id 1 = PADRÃO (-1)
@@ -790,7 +815,7 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     vibeBox.onChange = [this] { proc.setVibe((mc::Vibe) (vibeBox.getSelectedId() - 1)); };
     content.addAndMakeVisible(vibeBox);
     // changing the sound only changes the preview instrument: the notes, history and MIDI stay as they are
-    soundBox.onChange = [this] { proc.kit = soundBox.getSelectedId() - 1; soundBox.setTooltip(Sampler::kit(proc.kit).description); };
+    soundBox.onChange = [this] { proc.kit = soundBox.getSelectedId() - 1; soundBox.setTooltip(utf8(Sampler::kit(proc.kit).description)); };
     content.addAndMakeVisible(soundBox);
     content.addAndMakeVisible(roll);
 
@@ -812,6 +837,17 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     setupSlider(bpm, 70, 170, proc.bpm, [this](double v) { proc.bpm = (int) v; content.repaint(); });
     setupSlider(bassVol, 0, 100, proc.bassLevel * 100, [this](double v) { proc.bassLevel = (float) v / 100.0f; content.repaint(); });
     setupSlider(melVol, 0, 100, proc.melodyLevel * 100, [this](double v) { proc.melodyLevel = (float) v / 100.0f; content.repaint(); });
+
+    // hover explanations for the controls under the piano roll
+    role.setTooltip(utf8("Fun\xc3\xa7\xc3\xa3o da melodia. L\xc3\x8d" "DER: a linha que canta a m\xc3\xbasica. REFR\xc3\x83O: um gancho curto e repetido, f\xc3\xa1" "cil de lembrar. RESPOSTA: uma linha que responde \xc3\xa0 principal, com mais espa\xc3\xa7o."));
+    feel.setTooltip(utf8("Levada do ritmo. RETO: notas no tempo. SWING: as notas do contratempo atrasam um pouco, balan\xc3\xa7" "ado. TERCINA: grupos de tr\xc3\xaas notas, como em trap e R&B."));
+    density.setTooltip(utf8("Quantas notas a melodia tem. BAIXA deixa mais espa\xc3\xa7o e pausas, ALTA \xc3\xa9 mais movimentada."));
+    range.setTooltip(utf8("Altura da melodia. GRAVE fica mais embaixo, AGUDO mais em cima."));
+    bars.setTooltip(utf8("Tamanho do loop em compassos: 2, 4 ou 8."));
+    bpm.setTooltip(utf8("Andamento do preview e do WAV. Com a DAW tocando e a sincronia ligada, o plugin segue o tempo da DAW."));
+    bassVol.setTooltip(utf8("Volume do grave no preview e no WAV. N\xc3\xa3o muda as notas."));
+    melVol.setTooltip(utf8("Volume da melodia e dos acordes no preview e no WAV. N\xc3\xa3o muda as notas."));
+    historyBtn.setTooltip(utf8("Volta para uma gera\xc3\xa7\xc3\xa3o anterior."));
 
     play.onClick = [this] { proc.setPlaying(!proc.isPlaying()); };
     vari.onClick = [this] { proc.variation(); };
@@ -1028,7 +1064,7 @@ void MelodyCodeEditor::paintContent(juce::Graphics& g) {
     const auto padrao = utf8("PADR\xc3\x83O") + arrow;
     const juce::String info = (s.style == mc::Style::automatic ? padrao : juce::String()) + utf8(mc::styleName(shownPat.style))
                             + dot + (s.key < 0 || s.scale < 0 ? padrao : juce::String()) + juce::String(noteNames[shownPat.key]) + " " + utf8(ccp::scaleName(shownPat.scale))
-                            + dot + utf8(mc::vibeName(s.vibe)) + dot + juce::String(s.bars) + " BARS" + dot + juce::String(proc.bpm) + " BPM";
+                            + dot + utf8(mc::vibeName(s.vibe)) + dot + juce::String(s.bars) + " COMPASSOS" + dot + juce::String(proc.bpm) + " BPM";
     g.setFont(font(12.0f, true).withExtraKerningFactor(0.1f));
     const float iw = juce::GlyphArrangement::getStringWidth(g.getCurrentFont(), info) + 34;
     auto pill = juce::Rectangle<float>((float) (width - L::pad) - 52 - iw, 26, iw, 32);
@@ -1042,8 +1078,8 @@ void MelodyCodeEditor::paintContent(juce::Graphics& g) {
         g.setFont(font(11.0f, true).withExtraKerningFactor(0.2f));
         g.drawText(t, juce::Rectangle<float>(x, y, 300, 16), juce::Justification::centredLeft);
     };
-    label("TOM", (float) keyBox.getX(), 92); label("ESCALA", (float) scaleBox.getX(), 92); label("STYLE", (float) styleBox.getX(), 92);
-    label("VIBE", (float) vibeBox.getX(), 92); label("SOUND", (float) soundBox.getX(), 92);
+    label("TOM", (float) keyBox.getX(), 92); label("ESCALA", (float) scaleBox.getX(), 92); label("ESTILO", (float) styleBox.getX(), 92);
+    label("CLIMA", (float) vibeBox.getX(), 92); label("TIMBRE", (float) soundBox.getX(), 92);
 
     g.setColour(mute);
     g.setFont(font(12.0f));
@@ -1065,9 +1101,9 @@ void MelodyCodeEditor::paintContent(juce::Graphics& g) {
         }
     };
     const int gap = 12, w = (width - 2 * L::pad - 3 * gap) / 4, w5 = (width - 2 * L::pad - 4 * gap) / 5;
-    const char* titles[] { "ROLE", "FEEL", "DENSITY", "RANGE", "BARS" };
-    for (int i = 0; i < 5; ++i) box({ L::pad + i * (w5 + gap), L::ctlY, w5, 80 }, titles[i], {});
+    const char* titles[] { "FUN\xc3\x87\xc3\x83O", "LEVADA", "DENSIDADE", "REGISTRO", "COMPASSOS" };
+    for (int i = 0; i < 5; ++i) box({ L::pad + i * (w5 + gap), L::ctlY, w5, 80 }, utf8(titles[i]), {});
     box({ L::pad, L::ctl2Y, w, 70 }, "BPM", juce::String(proc.bpm));
-    box({ L::pad + (w + gap), L::ctl2Y, w, 70 }, "BASS", juce::String((int) std::round(proc.bassLevel * 100)));
-    box({ L::pad + 2 * (w + gap), L::ctl2Y, w, 70 }, "MELODY", juce::String((int) std::round(proc.melodyLevel * 100)));
+    box({ L::pad + (w + gap), L::ctl2Y, w, 70 }, "GRAVE", juce::String((int) std::round(proc.bassLevel * 100)));
+    box({ L::pad + 2 * (w + gap), L::ctl2Y, w, 70 }, "MELODIA", juce::String((int) std::round(proc.melodyLevel * 100)));
 }

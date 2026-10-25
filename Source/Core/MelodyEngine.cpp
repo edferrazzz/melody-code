@@ -57,6 +57,14 @@ const Profile& profile(Style s) {
             { {{2,2,root},{6,2,root},{10,2,root},{14,2,octave}}, {{0,2,root},{3,3,root},{8,2,root},{11,5,root}} } } },
         { Style::afrobeats, { ccp::Style::pop, .3, .8, 3, 7, .8, .1, .2, false, false, .2, .1, .1, Texture::thirds, .2, {}, {},
             { {{0,3,root},{3,3,fifth},{7,2,root},{10,4,octave},{14,2,approach}}, {{0,6,root},{6,1,root},{7,3,fifth},{12,4,root}} } } },
+        { Style::orchestral, { ccp::Style::cinematic, .15, 1.0, 4, 10, .7, .05, .25, false, false, .05, .05, .35, Texture::sixths, .3, {}, {},
+            { {{0,16,root}}, {{0,8,root},{8,8,fifth}}, {{0,12,root},{12,4,approach}} } } },
+        { Style::drill, { ccp::Style::trap, .35, .75, 4, 7, .8, .1, .1, false, false, .2, .08, .05, Texture::octaves, .12, {}, {},
+            { {{0,3,root},{6,4,root},{11,5,octave}}, {{0,6,root},{9,3,root},{12,4,approach}} } } },
+        { Style::mpb, { ccp::Style::jazz, .15, .95, 4, 9, .7, .3, .25, true, true, .3, .15, .2, Texture::sixths, .2, {}, {},
+            { {{0,3,root},{3,5,fifth},{8,3,root},{11,5,fifth}}, {{0,6,root},{6,2,fifth},{8,6,root},{14,2,approach}} } } },
+        { Style::lofi, { ccp::Style::loFi, .2, 1.0, 4, 8, .75, .2, .25, true, true, .2, .15, .3, Texture::thirds, .2, {}, {},
+            { {{0,10,root},{10,2,fifth},{12,4,octave}}, {{0,6,root},{7,3,fifth},{12,4,approach}} } } },
     };
     return table.at(s);
 }
@@ -441,9 +449,9 @@ std::vector<uint8_t> midiBytes(const std::vector<Note>& notes, int bpm, int chan
 }
 
 const char* styleName(Style x) {
-    static const char* n[] { "PADRÃO", "FUNK BR", "POP", "TRAP", "R&B", "REGGAETON", "HOUSE", "AFROBEATS" };
+    static const char* n[] { "PADRÃO", "FUNK BR", "POP", "TRAP", "R&B", "REGGAETON", "HOUSE", "AFROBEATS", "ORQUESTRAL", "DRILL", "MPB", "LO-FI" };
     return n[(int) x];
 }
-const char* vibeName(Vibe x) { static const char* n[] { "CLEAN", "DREAMY", "DARK", "LO-FI TAPE", "SPACE" }; return n[(int) x]; }
-const char* feelName(Feel x) { static const char* n[] { "STRAIGHT", "SWING", "TRIPLET" }; return n[(int) x]; }
+const char* vibeName(Vibe x) { static const char* n[] { "LIMPO", "SONHADOR", "SOMBRIO", "FITA LO-FI", "ESPACIAL" }; return n[(int) x]; }
+const char* feelName(Feel x) { static const char* n[] { "RETO", "SWING", "TERCINA" }; return n[(int) x]; }
 }
