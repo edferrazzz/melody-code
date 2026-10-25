@@ -46,7 +46,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force Release/Windows | Out-Null
           Copy-Item "dist/Melody Code * Instalador.exe" Release/Windows/
-          $v = (Select-String -Path CMakeLists.txt -Pattern 'VERSION ([0-9.]+)').Matches[0].Groups[1].Value
+          $v = (Select-String -Path CMakeLists.txt -Pattern 'project\(MelodyCode VERSION ([0-9.]+)').Matches[0].Groups[1].Value
           Compress-Archive -Force -Path "dist/Melody Code.vst3" -DestinationPath "Release/Windows/Melody Code $v VST3 Windows.zip"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
