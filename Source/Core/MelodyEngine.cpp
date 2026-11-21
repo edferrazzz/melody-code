@@ -65,6 +65,18 @@ const Profile& profile(Style s) {
             { {{0,3,root},{3,5,fifth},{8,3,root},{11,5,fifth}}, {{0,6,root},{6,2,fifth},{8,6,root},{14,2,approach}} } } },
         { Style::lofi, { ccp::Style::loFi, .2, 1.0, 4, 8, .75, .2, .25, true, true, .2, .15, .3, Texture::thirds, .2, {}, {},
             { {{0,10,root},{10,2,fifth},{12,4,octave}}, {{0,6,root},{7,3,fifth},{12,4,approach}} } } },
+        { Style::deepHouse, { ccp::Style::house, .3, .85, 4, 8, .8, .1, .2, true, false, .2, .05, .2, Texture::thirds, .15, {}, {},
+            { {{0,2,root},{3,1,root},{6,2,octave},{10,2,root},{14,2,fifth}}, {{2,2,root},{6,2,root},{8,1,octave},{10,2,root},{14,1,approach}} } } },
+        { Style::techHouse, { ccp::Style::house, .5, .6, 3, 7, .85, 0, .15, false, false, .1, 0, 0, Texture::none, 0, {}, {},
+            { {{2,2,root},{6,2,root},{10,2,root},{14,2,root}}, {{1,1,root},{2,2,root},{6,1,octave},{9,1,root},{10,2,root},{14,2,root}} } } },
+        { Style::melodicTechno, { ccp::Style::edm, .35, .7, 4, 12, .75, 0, .6, false, false, .05, 0, .1, Texture::none, 0, {}, {},
+            { {{2,1,root},{3,1,root},{6,1,root},{7,1,root},{10,1,root},{11,1,root},{14,1,root},{15,1,root}}, {{2,2,root},{6,2,root},{10,2,root},{14,2,octave}} } } },
+        { Style::trance, { ccp::Style::edm, .3, .8, 4, 12, .8, 0, .4, false, false, .1, .05, .05, Texture::octaves, .2, {}, {},
+            { {{2,2,root},{6,2,root},{10,2,root},{14,2,root}}, {{2,1,root},{3,1,root},{6,1,root},{7,1,root},{10,1,root},{11,1,root},{14,1,root},{15,1,root}} } } },
+        { Style::futureBass, { ccp::Style::edm, .3, .85, 4, 10, .8, .05, .25, true, false, .25, .1, .1, Texture::octaves, .2, {}, {},
+            { {{0,6,root},{6,4,root},{10,6,root}}, {{0,3,root},{3,3,root},{6,4,octave},{10,6,root}} } } },
+        { Style::ukGarage, { ccp::Style::house, .3, .7, 3, 8, .8, .1, .2, true, false, .25, .1, .05, Texture::thirds, .15, {}, {},
+            { {{0,3,root},{3,1,root},{6,2,octave},{10,3,root},{13,1,fifth}}, {{0,2,root},{3,3,root},{8,1,root},{10,2,octave},{14,2,root}} } } },
     };
     return table.at(s);
 }
@@ -449,7 +461,9 @@ std::vector<uint8_t> midiBytes(const std::vector<Note>& notes, int bpm, int chan
 }
 
 const char* styleName(Style x) {
-    static const char* n[] { "PADRÃO", "FUNK BR", "POP", "TRAP", "R&B", "REGGAETON", "HOUSE", "AFROBEATS", "ORQUESTRAL", "DRILL", "MPB", "LO-FI" };
+    static const char* n[] { "PADRÃO", "FUNK BR", "POP", "TRAP", "R&B", "REGGAETON", "HOUSE", "AFROBEATS", "ORQUESTRAL", "DRILL", "MPB", "LO-FI",
+                             "DEEP HOUSE", "TECH HOUSE", "MELODIC TECHNO", "TRANCE", "FUTURE BASS", "UK GARAGE" };
+    static_assert(std::size(n) == (size_t) Style::count);
     return n[(int) x];
 }
 const char* vibeName(Vibe x) { static const char* n[] { "LIMPO", "SONHADOR", "SOMBRIO", "FITA LO-FI", "ESPACIAL" }; return n[(int) x]; }

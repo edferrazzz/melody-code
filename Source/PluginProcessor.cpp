@@ -63,7 +63,7 @@ std::vector<mc::Note> heldChords(const mc::Pattern& p) {
     return out;
 }
 // ...and, for stab one-shots tuned to a chord, one note per hit: the chord's root, in the octave nearest the
-// chords' median so the line keeps the chords' center (the sampler then moves it by octaves like any line)
+// chords' median so the line keeps the chords' center (the sets then moves it by octaves like any line)
 std::vector<mc::Note> rootChords(const mc::Pattern& p) {
     const int mid = layerCenters(p)[2];
     std::map<int, mc::Note> byStart;
@@ -188,7 +188,7 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
     synth.setKit(kit);
     synth.setFx(fxFor((mc::Vibe) soundVibe.load()));
-    synth.setLevels(bassLevel, melodyLevel);
+    synth.setLevels(bassLevel, melodyLevel, chordLevel);
     synth.setTempo(tempo);
 
     events.clear();   // reserved in prepareToPlay: no allocation on the audio thread
@@ -215,7 +215,7 @@ void MelodyCodeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
                     }
             };
             collect(audioPattern.bass, 1);
-            const auto& k = Sampler::kit(kit);
+            const auto& k = Sets::kit(kit);
             collect(k.sustainChords ? audioHeldChords : k.rootChords ? audioRootChords : audioPattern.chords, 2);
             collect(audioPattern.melody, 0);
             position = to;
@@ -265,12 +265,12 @@ bool MelodyCodeProcessor::renderWav(const juce::File& file, bool allLayers, int 
     s.prepare(rate);
     s.setKit(kit);
     s.setFx(fxFor(p.settings.vibe));
-    s.setLevels(bassLevel, melodyLevel);
+    s.setLevels(bassLevel, melodyLevel, chordLevel);
     s.setTempo(tempo);
     const auto centers = layerCenters(p);
     s.setCenters(centers[0], centers[1], centers[2]);
     const auto held = heldChords(p), roots = rootChords(p);
-    const auto& k = Sampler::kit(kit);
+    const auto& k = Sets::kit(kit);
     struct Ev { int at; mc::Note note; int layer; };
     std::vector<Ev> evs;
     for (int pass = 0; pass < 2; ++pass) {   // play the loop twice and keep the second: its start carries the first pass's tail
@@ -312,7 +312,7 @@ void MelodyCodeProcessor::getStateInformation(juce::MemoryBlock& dest) {
     root.setAttribute("density", (int) s.density); root.setAttribute("range", (int) s.range); root.setAttribute("bars", s.bars);
     root.setAttribute("bpm", bpm); root.setAttribute("sync", syncToHost.load()); root.setAttribute("midiOut", midiOut.load());
     root.setAttribute("resolvedStyle", (int) shown.style); root.setAttribute("resolvedKey", shown.key); root.setAttribute("resolvedScale", (int) shown.scale);
-    root.setAttribute("kit", kit); root.setAttribute("dragAll", dragAllLayers.load()); root.setAttribute("bassLevel", bassLevel); root.setAttribute("melodyLevel", melodyLevel);
+    root.setAttribute("kit", kit); root.setAttribute("dragAll", dragAllLayers.load()); root.setAttribute("bassLevel", bassLevel); root.setAttribute("melodyLevel", melodyLevel); root.setAttribute("chordLevel", chordLevel);
     for (int i = 0; i < shown.bars(); ++i) {
         const auto& c = shown.progression.chords[(size_t) i];
         auto* x = root.createNewChildElement("chord");
@@ -341,8 +341,8 @@ void MelodyCodeProcessor::setStateInformation(const void* data, int size) {
     s.range = (mc::Range) clampEnum("range", (int) mc::Range::count, 1);
     s.bars = xml->getIntAttribute("bars", 4);
     if (s.bars != 2 && s.bars != 4 && s.bars != 8) s.bars = 4;
-    bpm = juce::jlimit(60, 180, xml->getIntAttribute("bpm", 120)); kit = clampEnum("kit", Sampler::kitCount, 0); dragAllLayers = xml->getBoolAttribute("dragAll", false);
-    bassLevel = (float) xml->getDoubleAttribute("bassLevel", 0.7); melodyLevel = (float) xml->getDoubleAttribute("melodyLevel", 0.8);
+    bpm = juce::jlimit(60, 180, xml->getIntAttribute("bpm", 120)); kit = clampEnum("kit", Sets::kitCount, 0); dragAllLayers = xml->getBoolAttribute("dragAll", false);
+    bassLevel = (float) xml->getDoubleAttribute("bassLevel", 0.7); melodyLevel = (float) xml->getDoubleAttribute("melodyLevel", 0.8); chordLevel = (float) xml->getDoubleAttribute("chordLevel", 0.8);
     syncToHost = xml->getBoolAttribute("sync", true); midiOut = xml->getBoolAttribute("midiOut", true);
     mc::Pattern p;
     p.settings = s;

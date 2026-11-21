@@ -35,7 +35,6 @@ Name: "desktopicon"; Description: "Criar atalho na área de trabalho"
 [Files]
 Source: "{#DistDir}\Melody Code.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#DistDir}\Melody Code.vst3\*"; DestDir: "{code:Vst3Dir}\Melody Code.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\Assets\Samples\LICENSES.txt"; DestDir: "{app}"; DestName: "Sample credits.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Melody Code"; Filename: "{app}\Melody Code.exe"

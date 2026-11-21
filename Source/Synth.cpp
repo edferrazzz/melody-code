@@ -35,7 +35,7 @@ static_assert(Synth::presetCount == 25, "keep in step with the table in Tone.cpp
 
 void Synth::prepare(double rate) {
     sr = rate;
-    sampler.prepare(rate);
+    sets.prepare(rate);
     random.setSeed(0x4d43);   // repeatable renders
     const int ksSize = (int) (sr / 25.0) + 4;
     for (auto& v : voices) { v.ks.assign((size_t) ksSize, 0.0f); v.active = false; }
@@ -57,17 +57,17 @@ void Synth::prepare(double rate) {
 
 void Synth::allNotesOff() {
     for (auto& v : voices) if (v.active) v.stage = kill;
-    sampler.allNotesOff();
+    sets.allNotesOff();
 }
 
 int Synth::activeVoices() const {
     int n = 0;
     for (const auto& v : voices) n += v.active ? 1 : 0;
-    return n + sampler.activeVoices();
+    return n + sets.activeVoices();
 }
 
 void Synth::noteOn(int pitch, int velocity, int lengthSamples, bool isBass, int layer) {
-    if (kit >= 0) { sampler.noteOn(pitch, velocity, lengthSamples, layer < 0 ? (isBass ? 1 : 0) : layer); return; }
+    if (kit >= 0) { sets.noteOn(pitch, velocity, lengthSamples, layer < 0 ? (isBass ? 1 : 0) : layer); return; }
     Voice* v = nullptr;
     for (auto& x : voices) if (!x.active) { v = &x; break; }
     if (!v) {   // steal the quietest released voice, else the oldest
@@ -519,7 +519,7 @@ void Synth::render(float* left, float* right, int n) {
         const double ratio = fx.tape > 0.001f ? cents(fx.tape * (9.0 * std::sin(twoPi * wowPhase) + 2.5 * std::sin(twoPi * flutterPhase))) : 1.0;
         float l = 0.0f, r = 0.0f, dryL = 0.0f, dryR = 0.0f;
         for (auto& v : voices) if (v.active) renderVoice(v, l, r, ratio);
-        if (kit >= 0) sampler.render(l, r, dryL, dryR);   // a set's bass stays out of the effects: dry and centred
+        if (kit >= 0) sets.render(l, r, dryL, dryR);   // a set's bass stays out of the effects: dry and centred
         // preset polish: 12 dB/oct low cut (keeps the low end clean), then stereo width
         float x[2] { l, r };
         for (int c = 0; c < 2; ++c) {

@@ -2,6 +2,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "PluginProcessor.h"
 #include "UpdateChecker.h"
+#include "License.h"
 
 namespace Theme {
 constexpr int width = 1240, height = 820;
@@ -68,9 +69,12 @@ struct UpdateStatus {
 class ModalOverlay : public juce::Component, private juce::Timer {
 public:
     ModalOverlay() { setWantsKeyboardFocus(true); setVisible(false); }
-    void present(juce::Component& owner, std::unique_ptr<juce::Component> panel, float scale);
+    // A locked panel (license) cannot be closed by clicking outside it or pressing Esc.
+    void present(juce::Component& owner, std::unique_ptr<juce::Component> panel, float scale, bool locked = false);
     void dismiss();
+    void rescale(juce::Rectangle<int> bounds, float scale);
     bool isPresenting() const { return content != nullptr; }
+    juce::Component* getPanel() const { return content.get(); }
     void layoutPanel();
     void paint(juce::Graphics&) override;
     void resized() override { layoutPanel(); }
@@ -81,6 +85,27 @@ private:
     juce::Image backdrop;
     std::unique_ptr<juce::Component> content;
     float uiScale { 1.0f }, reveal {};
+    bool locked {};
+};
+
+class LicensePanel : public juce::Component {
+public:
+    enum class Mode { activate, revoked, change };
+    LicensePanel(Mode, juce::String currentEmail);
+    std::function<void(juce::String)> onSubmit;   // typed email; the panel stays busy until finish()
+    std::function<void()> onCancel;
+    void finish(bool success, const juce::String& message);
+    bool isLocked() const { return mode != Mode::change; }
+    void paint(juce::Graphics&) override;
+    void resized() override;
+    void visibilityChanged() override;
+private:
+    void submit();
+    Mode mode;
+    juce::String email, message;
+    bool busy {}, failed {};
+    juce::TextEditor field;
+    ActionButton activate { "ATIVAR", Icon::none, true }, cancel { "CANCELAR" };
 };
 
 class SettingsPanel : public juce::Component, private juce::Timer {
@@ -91,13 +116,21 @@ public:
     void mouseExit(const juce::MouseEvent&) override { mouse = { -1, -1 }; repaint(); }
     void mouseUp(const juce::MouseEvent&) override;
     static constexpr int panelWidth = 340;
+    // Window size chips and the license row, wired by the editor.
+    std::function<float()> windowScale;
+    std::function<void(float)> setWindowScale;
+    std::function<juce::String()> licenseEmail;
+    std::function<void()> changeLicense;
+    static constexpr std::array<float, 5> scaleValues { 0.75f, 0.9f, 1.0f, 1.25f, 1.5f };
 private:
     void timerCallback() override { repaint(); }
     static constexpr std::array<int, 8> bpmValues { 80, 90, 100, 110, 120, 128, 140, 160 };
     juce::Rectangle<float> syncRow() const { return { 18, 100, panelWidth - 36.0f, 40 }; }
     juce::Rectangle<float> midiRow() const { return { 18, 288, panelWidth - 36.0f, 40 }; }
     juce::Rectangle<float> dragRow() const { return { 18, 402, panelWidth - 36.0f, 40 }; }
-    juce::Rectangle<float> updateRow() const { return { 18, 516, panelWidth - 36.0f, 40 }; }
+    juce::Rectangle<float> scaleChip(size_t i) const { return { 18.0f + (float) i * 61.6f, 516, 56, 32 }; }
+    juce::Rectangle<float> licenseRow() const { return { 18, 602, panelWidth - 36.0f, 40 }; }
+    juce::Rectangle<float> updateRow() const { return { 18, 686, panelWidth - 36.0f, 40 }; }
     juce::Rectangle<float> closeArea() const { return { panelWidth - 46.0f, 14, 30, 30 }; }
     juce::Rectangle<float> chip(size_t i) const { return { 18.0f + (float) (i % 4) * 77.0f, 152.0f + (float) (i / 4) * 38.0f, 70, 32 }; }
     bool isOver(juce::Rectangle<float> r) const { return r.contains(mouse); }
@@ -186,7 +219,7 @@ private:
     Segmented role { "L\xc3\x8d" "DER", "REFR\xc3\x83O", "RESPOSTA" }, feel { "RETO", "SWING", "TERCINA" }, density { "BAIXA", "M\xc3\x89" "DIA", "ALTA" },
         range { "GRAVE", "M\xc3\x89" "DIO", "AGUDO" }, bars { "2", "4", "8" };
     juce::TooltipWindow tooltips { this, 650 };
-    juce::Slider bpm, bassVol, melVol;
+    juce::Slider bpm, bassVol, melVol, chordVol;
     ActionButton play { "OUVIR", Icon::play }, vari { juce::String::fromUTF8("VARIAÇÃO"), Icon::variation },
         newMel { "NOVA MELODIA", Icon::random }, gen { "GERAR", Icon::none, true },
         historyBtn { juce::String::fromUTF8("HISTÓRICO"), Icon::history }, save { "SALVAR MIDI", Icon::save };
@@ -194,6 +227,11 @@ private:
     IconButton gear { Icon::gear };
     ModalOverlay overlay;
     void openSettings();
+    void checkLicense();
+    void showLicense(LicensePanel::Mode);
+    void applyWindowScale(float);
+    juce::SharedResourcePointer<LicenseManager> license;
+    int licenseTicks {};
     void checkForUpdates(bool silent);
     UpdateStatus update;
     UpdateChecker updateChecker;

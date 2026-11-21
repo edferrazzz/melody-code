@@ -1,5 +1,6 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include "PluginProcessor.h"
+#include "PluginEditor.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -195,20 +196,20 @@ int main() {
     }
     // MC_DEMO_DIR=<folder>: one full-mix WAV per sound set, in a style that suits it, plus its three stems
     if (const char* dir = std::getenv("MC_DEMO_DIR")) {
-        const mc::Style styles[] { mc::Style::rnb, mc::Style::lofi, mc::Style::reggaeton, mc::Style::lofi, mc::Style::rnb, mc::Style::reggaeton, mc::Style::lofi,
-                                   mc::Style::orchestral, mc::Style::orchestral, mc::Style::orchestral, mc::Style::funkBR, mc::Style::funkBR, mc::Style::funkBR };
-        const int tempos[] { 88, 80, 95, 80, 88, 95, 80, 76, 76, 92, 130, 130, 130 };
-        static_assert(std::size(styles) == Sampler::kitCount && std::size(tempos) == Sampler::kitCount);
+        const mc::Style styles[] { mc::Style::rnb, mc::Style::lofi, mc::Style::lofi, mc::Style::trap, mc::Style::reggaeton, mc::Style::deepHouse,
+                                   mc::Style::techHouse, mc::Style::trance, mc::Style::techHouse, mc::Style::melodicTechno, mc::Style::funkBR, mc::Style::orchestral };
+        const int tempos[] { 88, 80, 80, 140, 95, 122, 126, 138, 126, 124, 130, 76 };
+        static_assert(std::size(styles) == Sets::kitCount && std::size(tempos) == Sets::kitCount);
         const char* stems[] { "melodia", "grave", "acordes" };
-        for (int k = 0; k < Sampler::kitCount; ++k) {
+        for (int k = 0; k < Sets::kitCount; ++k) {
             p.kit = k; p.settings().style = styles[k]; p.settings().bars = 8; p.bpm = tempos[k];
             p.setVibe(mc::Vibe::clean); p.generateAll();
             if (std::getenv("MC_DEMO_VERBOSE")) {
                 const auto pt = p.pattern();
                 auto med = [](std::vector<mc::Note> v) { std::sort(v.begin(), v.end(), [](auto& a, auto& b) { return a.pitch < b.pitch; }); return v.empty() ? 0 : v[v.size() / 2].pitch; };
-                std::printf("%s: melody %d bass %d chords %d\n", Sampler::kit(k).name, med(pt.melody), med(pt.bass), med(pt.chords));
+                std::printf("%s: melody %d bass %d chords %d\n", Sets::kit(k).name, med(pt.melody), med(pt.bass), med(pt.chords));
             }
-            const auto base = juce::String(k + 1).paddedLeft('0', 2) + " " + Sampler::kit(k).name;
+            const auto base = juce::String(k + 1).paddedLeft('0', 2) + " " + Sets::kit(k).name;
             p.renderWav(juce::File(dir).getChildFile(base + ".wav"), true);
             for (int l = 0; l < 3; ++l) p.renderWav(juce::File(dir).getChildFile(base + " - " + stems[l] + ".wav"), true, l);
         }
@@ -221,6 +222,17 @@ int main() {
         juce::PNGImageFormat png;
         juce::File file { juce::String(shot) }; file.deleteFile(); juce::FileOutputStream out(file);
         png.writeImageToStream(img, out);
+        // the settings and license panels on their own, next to the editor picture
+        UpdateStatus update;
+        SettingsPanel settings(p, update, {}, {}, {});
+        settings.windowScale = [] { return 1.0f; };
+        settings.licenseEmail = [] { return juce::String("comprador@gmail.com"); };
+        LicensePanel licensePanel(LicensePanel::Mode::activate, {});
+        for (auto [panel, suffix] : { std::pair<juce::Component*, const char*> { &settings, "-settings.png" }, { &licensePanel, "-license.png" } }) {
+            juce::File f = file.getSiblingFile(file.getFileNameWithoutExtension() + suffix); f.deleteFile();
+            juce::FileOutputStream o(f);
+            png.writeImageToStream(panel->createComponentSnapshot(panel->getLocalBounds(), true, 1.0f), o);
+        }
         return 0;
     }
     int failures = 0;
@@ -228,7 +240,7 @@ int main() {
     juce::MidiBuffer midi;
     for (int style = 0; style < (int) mc::Style::count; ++style) {
         p.settings().style = (mc::Style) style;
-        p.kit = style % Sampler::kitCount;
+        p.kit = style % Sets::kitCount;
         p.setVibe((mc::Vibe) (style % (int) mc::Vibe::count));
         p.settings().feel = (mc::Feel) (style % 3);
         p.generateAll();
@@ -249,12 +261,12 @@ int main() {
         for (const auto m : midi) if (m.getMessage().isNoteOff()) ++offs;
         const double rms = std::sqrt(sumSq / n);
         const double db = 20 * std::log10(rms + 1e-12);
-        std::printf("%-8s %-10s %-10s rms %.1f dB peak %.2f midi on %d off %d\n", mc::styleName((mc::Style) style), Sampler::kit(p.kit).name, mc::vibeName((mc::Vibe) (style % 5)), db, peak, ons, offs);
+        std::printf("%-8s %-10s %-10s rms %.1f dB peak %.2f midi on %d off %d\n", mc::styleName((mc::Style) style), Sets::kit(p.kit).name, mc::vibeName((mc::Vibe) (style % 5)), db, peak, ons, offs);
         if (!finite || db < -40 || peak > 0.95 || ons == 0 || offs < ons) ++failures;
     }
     // every sound through every vibe on the same notes: no clipping, nothing silent
     p.settings().style = mc::Style::pop; p.generateAll();
-    for (int pr = 0; pr < Sampler::kitCount; ++pr)
+    for (int pr = 0; pr < Sets::kitCount; ++pr)
         for (int v = 0; v < (int) mc::Vibe::count; ++v) {
             p.kit = pr; p.setVibe((mc::Vibe) v); p.setPlaying(true);
             double sumSq = 0, peak = 0; long n = 0;
@@ -264,7 +276,7 @@ int main() {
             }
             p.setPlaying(false); p.processBlock(buf, midi);
             const double db = 20 * std::log10(std::sqrt(sumSq / n) + 1e-12);
-            std::printf("  %-15s %-10s rms %5.1f dB peak %.2f\n", Sampler::kit(pr).name, mc::vibeName((mc::Vibe) v), db, peak);
+            std::printf("  %-15s %-10s rms %5.1f dB peak %.2f\n", Sets::kit(pr).name, mc::vibeName((mc::Vibe) v), db, peak);
             if (db < -40 || peak > 0.95) ++failures;
         }
     // the WAV export: one loop, audible, no clipping

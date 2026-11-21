@@ -307,8 +307,9 @@ void IconButton::paintButton(juce::Graphics& g, bool over, bool down) {
 
 // ---------------------------------------------------------------------------
 
-void ModalOverlay::present(juce::Component& owner, std::unique_ptr<juce::Component> panel, float scale) {
+void ModalOverlay::present(juce::Component& owner, std::unique_ptr<juce::Component> panel, float scale, bool lock) {
     const bool was = isPresenting();
+    locked = lock;
     if (content) removeChildComponent(content.get());
     content = std::move(panel);
     uiScale = scale;
@@ -343,7 +344,16 @@ void ModalOverlay::dismiss() {
     removeChildComponent(content.get());
     juce::MessageManager::callAsync([old = std::shared_ptr<juce::Component>(content.release())] {});
     backdrop = {};
+    locked = false;
     setVisible(false);
+}
+
+void ModalOverlay::rescale(juce::Rectangle<int> bounds, float scale) {
+    if (!content) return;
+    uiScale = scale;
+    setBounds(bounds);
+    layoutPanel();
+    repaint();
 }
 
 void ModalOverlay::layoutPanel() {
@@ -381,11 +391,11 @@ void ModalOverlay::paint(juce::Graphics& g) {
 }
 
 void ModalOverlay::mouseUp(const juce::MouseEvent& e) {
-    if (content && !content->getBounds().toFloat().transformedBy(content->getTransform()).contains(e.position)) dismiss();
+    if (content && !locked && !content->getBounds().toFloat().transformedBy(content->getTransform()).contains(e.position)) dismiss();
 }
 
 bool ModalOverlay::keyPressed(const juce::KeyPress& k) {
-    if (k == juce::KeyPress::escapeKey) { dismiss(); return true; }
+    if (k == juce::KeyPress::escapeKey) { if (!locked) dismiss(); return true; }
     return false;
 }
 
@@ -393,7 +403,7 @@ bool ModalOverlay::keyPressed(const juce::KeyPress& k) {
 
 SettingsPanel::SettingsPanel(MelodyCodeProcessor& p, UpdateStatus& u, std::function<void()> c, std::function<void()> ch, std::function<void()> cu)
     : proc(p), update(u), close(std::move(c)), changed(std::move(ch)), checkUpdate(std::move(cu)) {
-    setSize(panelWidth, 620);
+    setSize(panelWidth, 784);
     startTimerHz(4);   // keeps the DAW tempo readout fresh
 }
 
@@ -480,7 +490,39 @@ void SettingsPanel::paint(juce::Graphics& g) {
                      juce::Rectangle<int>(18, 448, panelWidth - 36, 32), juce::Justification::centredLeft, 2, 1.0f);
     divider(486);
 
-    section(juce::String::fromUTF8("ATUALIZAÇÃO"), 494);
+    section("JANELA", 494);
+    {
+        const float current = windowScale ? windowScale() : 1.0f;
+        for (size_t i = 0; i < scaleValues.size(); ++i) {
+            const auto r = scaleChip(i);
+            const bool active = std::abs(current - scaleValues[i]) < 0.01f;
+            if (active) { g.setGradientFill(accent(r)); g.fillRoundedRectangle(r, 8); }
+            else {
+                g.setColour(isOver(r) ? panel2.brighter(0.06f) : panel2); g.fillRoundedRectangle(r, 8);
+                g.setColour(isOver(r) ? acc.withAlpha(0.7f) : line); g.drawRoundedRectangle(r.reduced(0.5f), 8, 1);
+            }
+            g.setColour(active ? ink : fg); g.setFont(font(14.0f, true));
+            g.drawText(juce::String(juce::roundToInt(scaleValues[i] * 100)) + "%", r, juce::Justification::centred);
+        }
+        g.setColour(mute); g.setFont(font(12.0f));
+        g.drawText(juce::String::fromUTF8("Tamanho padrão ao abrir o plugin"), juce::Rectangle<float>(18, 554, panelWidth - 36.0f, 16), juce::Justification::centredLeft);
+    }
+    divider(576);
+
+    section(juce::String::fromUTF8("LICENÇA"), 582);
+    {
+        const auto row = licenseRow();
+        g.setColour(isOver(row) ? panel2.brighter(0.06f) : panel2);
+        g.fillRoundedRectangle(row, 10);
+        g.setColour(fg); g.setFont(font(13.5f, true));
+        const auto mail = licenseEmail ? licenseEmail() : juce::String();
+        g.drawFittedText(mail.isNotEmpty() ? mail : juce::String::fromUTF8("Não ativada"), row.withTrimmedLeft(12).withTrimmedRight(80).toNearestInt(), juce::Justification::centredLeft, 1, 0.8f);
+        g.setColour(isOver(row) ? acc : mute); g.setFont(font(12.5f, true));
+        g.drawText("Trocar", row.withTrimmedRight(14), juce::Justification::centredRight);
+    }
+    divider(656);
+
+    section(juce::String::fromUTF8("ATUALIZAÇÃO"), 664);
     {
         const auto row = updateRow();
         g.setColour(isOver(row) ? panel2.brighter(0.06f) : panel2);
@@ -500,9 +542,9 @@ void SettingsPanel::paint(juce::Graphics& g) {
         g.setFont(font(12.5f));
         g.drawText(note, row.withTrimmedRight(14), juce::Justification::centredRight);
     }
-    divider(572);
+    divider(740);
     g.setColour(mute); g.setFont(font(12.0f));
-    g.drawText("Audio Makers", juce::Rectangle<float>(18, 584, 200, 20), juce::Justification::centredLeft);
+    g.drawText("Audio Makers", juce::Rectangle<float>(18, 752, 200, 20), juce::Justification::centredLeft);
 }
 
 void SettingsPanel::mouseUp(const juce::MouseEvent& e) {
@@ -511,13 +553,121 @@ void SettingsPanel::mouseUp(const juce::MouseEvent& e) {
     if (syncRow().contains(p)) proc.syncToHost = !proc.syncToHost.load();
     else if (midiRow().contains(p)) proc.midiOut = !proc.midiOut.load();
     else if (dragRow().contains(p)) proc.dragAllLayers = !proc.dragAllLayers.load();
+    else if (licenseRow().contains(p)) { if (changeLicense) changeLicense(); return; }
     else if (updateRow().contains(p)) {
         if (update.state == UpdateStatus::available && update.url.isNotEmpty()) juce::URL(update.url).launchInDefaultBrowser();
         else if (update.state != UpdateStatus::checking && checkUpdate) checkUpdate();
     }
-    else for (size_t i = 0; i < bpmValues.size(); ++i) if (chip(i).contains(p)) proc.bpm = bpmValues[i];
+    else {
+        for (size_t i = 0; i < bpmValues.size(); ++i) if (chip(i).contains(p)) proc.bpm = bpmValues[i];
+        for (size_t i = 0; i < scaleValues.size(); ++i)
+            if (scaleChip(i).contains(p) && setWindowScale) { setWindowScale(scaleValues[i]); return; }
+    }
     if (changed) changed();
     repaint();
+}
+
+// ---------------------------------------------------------------------------
+
+LicensePanel::LicensePanel(Mode m, juce::String currentEmail) : mode(m), email(std::move(currentEmail)) {
+    using namespace Theme;
+    field.setFont(font(15.5f));
+    field.setTextToShowWhenEmpty("seuemail@gmail.com", quiet.brighter(0.3f));
+    field.setIndents(14, 13);
+    field.setJustification(juce::Justification::centredLeft);
+    field.setColour(juce::TextEditor::backgroundColourId, bg);
+    field.setColour(juce::TextEditor::textColourId, fg);
+    field.setColour(juce::TextEditor::highlightColourId, acc.withAlpha(0.35f));
+    field.setColour(juce::TextEditor::highlightedTextColourId, fg);
+    field.setColour(juce::CaretComponent::caretColourId, acc);
+    field.setColour(juce::TextEditor::outlineColourId, line);
+    field.setColour(juce::TextEditor::focusedOutlineColourId, acc);
+    field.setInputRestrictions(254);
+    if (mode == Mode::revoked) field.setText(email, false);
+    field.onReturnKey = [this] { submit(); };
+    field.onTextChange = [this] { if (failed) { failed = false; message.clear(); repaint(); } };
+    addAndMakeVisible(field);
+    addAndMakeVisible(activate);
+    addChildComponent(cancel);
+    cancel.setVisible(mode == Mode::change);
+    for (auto* b : { &activate, &cancel }) b->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    activate.onClick = [this] { submit(); };
+    cancel.onClick = [this] { if (onCancel) onCancel(); };
+    setSize(380, 330);
+}
+
+void LicensePanel::visibilityChanged() {
+    if (isShowing()) juce::MessageManager::callAsync([safe = juce::Component::SafePointer<juce::TextEditor>(&field)] {
+        if (safe != nullptr && safe->isShowing()) safe->grabKeyboardFocus();
+    });
+}
+
+void LicensePanel::submit() {
+    if (busy) return;
+    busy = true;
+    failed = false;
+    message = juce::String::fromUTF8("Verificando sua compra...");
+    activate.setEnabled(false);
+    activate.setButtonText("VERIFICANDO...");
+    field.setReadOnly(true);
+    repaint();
+    if (onSubmit) onSubmit(field.getText());
+}
+
+void LicensePanel::finish(bool ok, const juce::String& text) {
+    busy = false;
+    failed = !ok;
+    message = text;
+    activate.setEnabled(true);
+    activate.setButtonText("ATIVAR");
+    field.setReadOnly(false);
+    repaint();
+}
+
+void LicensePanel::resized() {
+    field.setBounds(22, 166, getWidth() - 44, 46);
+    auto row = juce::Rectangle<int>(22, getHeight() - 66, getWidth() - 44, 44);
+    if (cancel.isVisible()) { cancel.setBounds(row.removeFromLeft(130)); row.removeFromLeft(10); }
+    activate.setBounds(row);
+}
+
+void LicensePanel::paint(juce::Graphics& g) {
+    using namespace Theme;
+    auto all = getLocalBounds().toFloat();
+    g.setGradientFill(juce::ColourGradient(panel2, 0, 0, panel, 0, all.getHeight(), false));
+    g.fillRoundedRectangle(all, 16);
+    g.setGradientFill(juce::ColourGradient(acc.withAlpha(0.10f), all.getCentreX(), 0, acc.withAlpha(0.0f), all.getCentreX(), 90, false));
+    g.fillRoundedRectangle(all, 16);
+    g.setColour(line);
+    g.drawRoundedRectangle(all.reduced(0.5f), 16, 1);
+
+    auto mark = juce::Rectangle<float>(22, 22, 40, 40);
+    g.setGradientFill(accent(mark)); g.fillRoundedRectangle(mark, 10);
+    drawIcon(g, Icon::sparkle, mark.reduced(10), ink);
+    g.setColour(mute); g.setFont(font(11.5f, true).withExtraKerningFactor(0.15f));
+    g.drawText(juce::String::fromUTF8(mode == Mode::revoked ? "LICENÇA DESATIVADA" : "LICENÇA"), 74, 22, 220, 16, juce::Justification::centredLeft);
+    g.setColour(fg); g.setFont(font(20.0f, true));
+    g.drawText(juce::String::fromUTF8(mode == Mode::activate ? "Ative o Melody Code" : mode == Mode::revoked ? "Seu acesso foi desativado"
+                                                                                                        : "Trocar e-mail da licença"),
+               74, 38, getWidth() - 96, 26, juce::Justification::centredLeft);
+
+    juce::String text;
+    if (mode == Mode::activate)
+        text = juce::String::fromUTF8("Digite o e-mail usado na compra do Melody Code. A verificação acontece só nesta primeira vez; depois ele funciona mesmo sem internet.");
+    else if (mode == Mode::revoked)
+        text = juce::String::fromUTF8("O acesso de ") + email + juce::String::fromUTF8(" não está mais ativo. Informe um e-mail com acesso ativo para continuar usando.");
+    else
+        text = juce::String::fromUTF8("Informe outro e-mail com acesso ativo ao Melody Code.");
+    g.setColour(mute); g.setFont(font(14.0f));
+    g.drawFittedText(text, 22, 80, getWidth() - 44, 58, juce::Justification::topLeft, 3, 1.0f);
+
+    g.setColour(mute); g.setFont(font(11.0f, true).withExtraKerningFactor(0.15f));
+    g.drawText("E-MAIL DA COMPRA", 22, 146, 200, 16, juce::Justification::centredLeft);
+    if (message.isNotEmpty()) {
+        g.setColour(failed ? juce::Colour(0xffff6b6b) : mute);
+        g.setFont(font(13.0f));
+        g.drawFittedText(message, 22, 218, getWidth() - 44, 36, juce::Justification::topLeft, 2, 1.0f);
+    }
 }
 
 void DragMidiButton::mouseDrag(const juce::MouseEvent& e) {
@@ -802,7 +952,7 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     for (int i = 0; i < (int) ccp::ScaleType::count; ++i) scaleBox.addItem(utf8(ccp::scaleName((ccp::ScaleType) i)), i + 2);
     for (int i = 0; i < (int) mc::Style::count; ++i) styleBox.addItem(utf8(mc::styleName((mc::Style) i)), i + 1);
     for (int i = 0; i < (int) mc::Vibe::count; ++i) vibeBox.addItem(utf8(mc::vibeName((mc::Vibe) i)), i + 1);
-    for (int k = 0; k < Sampler::kitCount; ++k) soundBox.addItem(utf8(Sampler::kit(k).name), k + 1);
+    for (int k = 0; k < Sets::kitCount; ++k) soundBox.addItem(utf8(Sets::kit(k).name), k + 1);
     auto onSetting = [this] {
         auto& s = proc.settings();
         s.key = keyBox.getSelectedId() - 2;      // id 1 = PADRÃO (-1)
@@ -815,7 +965,7 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     vibeBox.onChange = [this] { proc.setVibe((mc::Vibe) (vibeBox.getSelectedId() - 1)); };
     content.addAndMakeVisible(vibeBox);
     // changing the sound only changes the preview instrument: the notes, history and MIDI stay as they are
-    soundBox.onChange = [this] { proc.kit = soundBox.getSelectedId() - 1; soundBox.setTooltip(utf8(Sampler::kit(proc.kit).description)); };
+    soundBox.onChange = [this] { proc.kit = soundBox.getSelectedId() - 1; soundBox.setTooltip(utf8(Sets::kit(proc.kit).description)); };
     content.addAndMakeVisible(soundBox);
     content.addAndMakeVisible(roll);
 
@@ -837,6 +987,7 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     setupSlider(bpm, 70, 170, proc.bpm, [this](double v) { proc.bpm = (int) v; content.repaint(); });
     setupSlider(bassVol, 0, 100, proc.bassLevel * 100, [this](double v) { proc.bassLevel = (float) v / 100.0f; content.repaint(); });
     setupSlider(melVol, 0, 100, proc.melodyLevel * 100, [this](double v) { proc.melodyLevel = (float) v / 100.0f; content.repaint(); });
+    setupSlider(chordVol, 0, 100, proc.chordLevel * 100, [this](double v) { proc.chordLevel = (float) v / 100.0f; content.repaint(); });
 
     // hover explanations for the controls under the piano roll
     role.setTooltip(utf8("Fun\xc3\xa7\xc3\xa3o da melodia. L\xc3\x8d" "DER: a linha que canta a m\xc3\xbasica. REFR\xc3\x83O: um gancho curto e repetido, f\xc3\xa1" "cil de lembrar. RESPOSTA: uma linha que responde \xc3\xa0 principal, com mais espa\xc3\xa7o."));
@@ -846,7 +997,8 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     bars.setTooltip(utf8("Tamanho do loop em compassos: 2, 4 ou 8."));
     bpm.setTooltip(utf8("Andamento do preview e do WAV. Com a DAW tocando e a sincronia ligada, o plugin segue o tempo da DAW."));
     bassVol.setTooltip(utf8("Volume do grave no preview e no WAV. N\xc3\xa3o muda as notas."));
-    melVol.setTooltip(utf8("Volume da melodia e dos acordes no preview e no WAV. N\xc3\xa3o muda as notas."));
+    melVol.setTooltip(utf8("Volume da melodia no preview e no WAV. N\xc3\xa3o muda as notas."));
+    chordVol.setTooltip(utf8("Volume dos acordes no preview e no WAV. N\xc3\xa3o muda as notas."));
     historyBtn.setTooltip(utf8("Volta para uma gera\xc3\xa7\xc3\xa3o anterior."));
 
     play.onClick = [this] { proc.setPlaying(!proc.isPlaying()); };
@@ -888,12 +1040,18 @@ MelodyCodeEditor::MelodyCodeEditor(MelodyCodeProcessor& p) : AudioProcessorEdito
     constrainer.setSizeLimits(Theme::width / 2, Theme::height / 2, Theme::width * 2, Theme::height * 2);
     setConstrainer(&constrainer);
     setResizable(true, true);
-    setSize(Theme::width, Theme::height);
+    const float scale = license->getWindowScale();
+    setSize(juce::roundToInt(Theme::width * scale), juce::roundToInt(Theme::height * scale));
+    license->addChangeListener(this);
     startTimerHz(30);
+    juce::MessageManager::callAsync([safe = juce::Component::SafePointer<MelodyCodeEditor>(this)] {
+        if (safe != nullptr) safe->checkLicense();
+    });
 }
 
 MelodyCodeEditor::~MelodyCodeEditor() {
     updateChecker.cancelAndWait();
+    license->removeChangeListener(this);
     proc.removeChangeListener(this);
     setLookAndFeel(nullptr);
 }
@@ -919,10 +1077,19 @@ void MelodyCodeEditor::syncControls() {
     content.repaint();
 }
 
-void MelodyCodeEditor::changeListenerCallback(juce::ChangeBroadcaster*) { syncControls(); }
+void MelodyCodeEditor::changeListenerCallback(juce::ChangeBroadcaster* source) {
+    if (source == static_cast<juce::ChangeBroadcaster*>(&license.getObject())) {
+        // A revoked license locks the window again; a new activation is handled by its panel.
+        if (license->getStatus() != LicenseManager::Status::active) checkLicense();
+        overlay.repaint();
+        return;
+    }
+    syncControls();
+}
 
 void MelodyCodeEditor::timerCallback() {
     if (proc.isPlaying()) roll.repaint();
+    if (++licenseTicks >= 30 * 60) { licenseTicks = 0; license->revalidate(); }
     if (hintUntil && juce::Time::getMillisecondCounter() > hintUntil) { hintUntil = 0; hint.clear(); content.repaint(); }
 }
 
@@ -968,7 +1135,48 @@ void MelodyCodeEditor::saveMidi() {
 void MelodyCodeEditor::openSettings() {
     auto panel = std::make_unique<SettingsPanel>(proc, update, [this] { overlay.dismiss(); }, [this] { bpm.setValue(proc.bpm, juce::dontSendNotification); content.repaint(); },
                                                  [this] { checkForUpdates(false); });
+    juce::Component::SafePointer<MelodyCodeEditor> safe(this);
+    panel->windowScale = [safe] { return safe != nullptr ? (float) safe->getWidth() / (float) Theme::width : 1.0f; };
+    panel->setWindowScale = [safe](float s) { if (safe != nullptr) safe->applyWindowScale(s); };
+    panel->licenseEmail = [safe] { return safe != nullptr ? safe->license->getEmail() : juce::String(); };
+    panel->changeLicense = [safe] { if (safe != nullptr) safe->showLicense(LicensePanel::Mode::change); };
     overlay.present(*this, std::move(panel), (float) getWidth() / (float) Theme::width);
+    overlay.grabKeyboardFocus();
+}
+
+// Resizes the open window and keeps the size as the default for every new Melody Code window.
+void MelodyCodeEditor::applyWindowScale(float scale) {
+    license->setWindowScale(scale);
+    setSize(juce::roundToInt(Theme::width * scale), juce::roundToInt(Theme::height * scale));
+    overlay.repaint();
+}
+
+void MelodyCodeEditor::checkLicense() {
+    const auto status = license->getStatus();
+    if (status == LicenseManager::Status::active) {
+        if (dynamic_cast<LicensePanel*>(overlay.getPanel()) != nullptr) overlay.dismiss();
+        license->revalidate(true);
+        return;
+    }
+    if (auto* current = dynamic_cast<LicensePanel*>(overlay.getPanel()); current != nullptr && current->isLocked()) return;
+    showLicense(status == LicenseManager::Status::revoked ? LicensePanel::Mode::revoked : LicensePanel::Mode::activate);
+}
+
+void MelodyCodeEditor::showLicense(LicensePanel::Mode mode) {
+    auto panel = std::make_unique<LicensePanel>(mode, license->getEmail());
+    juce::Component::SafePointer<MelodyCodeEditor> safe(this);
+    juce::Component::SafePointer<LicensePanel> safePanel(panel.get());
+    panel->onSubmit = [safe, safePanel](juce::String email) {
+        if (safe == nullptr) return;
+        safe->license->activate(email, [safe, safePanel](LicenseManager::Outcome outcome) {
+            const bool ok = outcome.kind == LicenseManager::Outcome::Kind::authorized;
+            if (safePanel != nullptr) safePanel->finish(ok, outcome.message);
+            if (ok && safe != nullptr && safe->overlay.getPanel() == safePanel.getComponent()) safe->overlay.dismiss();
+        });
+    };
+    panel->onCancel = [safe] { if (safe != nullptr) safe->openSettings(); };
+    const bool locked = mode != LicensePanel::Mode::change;
+    overlay.present(*this, std::move(panel), (float) getWidth() / (float) Theme::width, locked);
     overlay.grabKeyboardFocus();
 }
 
@@ -992,7 +1200,7 @@ void MelodyCodeEditor::resized() {
     content.setBounds(0, 0, Theme::width, Theme::height);
     content.setTransform(juce::AffineTransform::scale((float) getWidth() / (float) Theme::width));
     layout();
-    overlay.dismiss();
+    overlay.rescale(getLocalBounds(), (float) getWidth() / (float) Theme::width);
 }
 
 namespace L {
@@ -1013,8 +1221,8 @@ void MelodyCodeEditor::layout() {
         int x = L::pad;
         for (auto* s : { &role, &feel, &density, &range, &bars }) { s->setBounds(x + 14, L::ctlY + 32, w5 - 28, 40); x += w5 + gap; }
         x = L::pad;
-        for (auto* s : { &bpm, &bassVol, &melVol }) { s->setBounds(x + 14, L::ctl2Y + 36, w - 28 - 46, 24); x += w + gap; }
-        historyBtn.setBounds(x, L::ctl2Y, w, 70);
+        for (auto* s : { &bpm, &melVol, &chordVol, &bassVol }) { s->setBounds(x + 14, L::ctl2Y + 36, w5 - 28 - 46, 24); x += w5 + gap; }
+        historyBtn.setBounds(x, L::ctl2Y, w5, 70);
     }
     {
         const int gap = 10, unit = (W - 7 * gap) / 8;
@@ -1103,7 +1311,8 @@ void MelodyCodeEditor::paintContent(juce::Graphics& g) {
     const int gap = 12, w = (width - 2 * L::pad - 3 * gap) / 4, w5 = (width - 2 * L::pad - 4 * gap) / 5;
     const char* titles[] { "FUN\xc3\x87\xc3\x83O", "LEVADA", "DENSIDADE", "REGISTRO", "COMPASSOS" };
     for (int i = 0; i < 5; ++i) box({ L::pad + i * (w5 + gap), L::ctlY, w5, 80 }, utf8(titles[i]), {});
-    box({ L::pad, L::ctl2Y, w, 70 }, "BPM", juce::String(proc.bpm));
-    box({ L::pad + (w + gap), L::ctl2Y, w, 70 }, "GRAVE", juce::String((int) std::round(proc.bassLevel * 100)));
-    box({ L::pad + 2 * (w + gap), L::ctl2Y, w, 70 }, "MELODIA", juce::String((int) std::round(proc.melodyLevel * 100)));
+    box({ L::pad, L::ctl2Y, w5, 70 }, "BPM", juce::String(proc.bpm));
+    box({ L::pad + (w5 + gap), L::ctl2Y, w5, 70 }, "MELODIA", juce::String((int) std::round(proc.melodyLevel * 100)));
+    box({ L::pad + 2 * (w5 + gap), L::ctl2Y, w5, 70 }, "ACORDES", juce::String((int) std::round(proc.chordLevel * 100)));
+    box({ L::pad + 3 * (w5 + gap), L::ctl2Y, w5, 70 }, "GRAVE", juce::String((int) std::round(proc.bassLevel * 100)));
 }

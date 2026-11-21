@@ -50,14 +50,14 @@ public:
     int bpm { 120 };
     std::atomic<bool> syncToHost { true };   // follow the DAW transport and tempo
     std::atomic<bool> midiOut { true };      // also send the notes out as MIDI (melody ch 1, bass ch 2)
-    int kit { 0 };                           // the sample kit (Sampler.h) that plays the preview
+    int kit { 0 };                           // the sound set (Sets.h) that plays the preview
     std::atomic<bool> dragAllLayers { false };  // ARRASTAR: melody only, or melody + chords + bass
     // Renders one loop of the pattern with the current kit and vibe to a 24-bit WAV (seamless: the tail wraps to the start).
     // onlyLayer >= 0 renders just that layer (0 melody, 1 bass, 2 chords): stems for tests and demos
     bool renderWav(const juce::File&, bool allLayers, int onlyLayer = -1);
     // BASS and MELODY are the preview mix levels of the two layers (low line, main line). They never change notes:
     // the composition is controlled by Role / Feel / Density / Range, so these stay a balance control.
-    float bassLevel { 0.7f }, melodyLevel { 0.8f };
+    float bassLevel { 0.7f }, melodyLevel { 0.8f }, chordLevel { 0.8f };
 
 private:
     void publish(mc::Pattern, bool addHistory = true);

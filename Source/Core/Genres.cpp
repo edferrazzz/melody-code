@@ -251,6 +251,132 @@ const Engine& lofi() {
     };
     return e;
 }
+
+const Engine& deepHouse() {
+    static const Engine e {
+        "DEEP HOUSE", "warm, unhurried hook that floats over minor-seventh and ninth stabs, few notes, long tails, a soulful turn at the end",
+        { S::dorian, S::naturalMinor, S::dorian },
+        { { { 0, 3, 0, 3 }, { n9, s7, n9, s7 } }, { { 0, 5, 3, 4 }, { s7, s7, s7, s7 } }, { { 0, 6, 5, 3 }, { n9, s7, s7, s7 } } },
+        { { { 1, 4, 0, 5 }, { s7, s7, s7, s7 } }, { { 3, 4, 2, 5 }, { s7, s7, s7, s7 } } },
+        { { 0, 0, 0, 0 }, { 0, -2, 0, -2 }, { 0, H, 0, H } },
+        { { { 2, 3 }, { 6, 2 }, { 10, 4 } },
+          { { 0, 4 }, { 6, 2 }, { 8, 2 }, { 11, 5 } },
+          { { 3, 3 }, { 7, 1 }, { 8, 6 } },
+          { { 2, 2 }, { 4, 2 }, { 10, 2 }, { 12, 4 } } },
+        { { { 3, 2 }, { 6, 2 }, { 11, 2 }, { 14, 2 } }, { { 0, 3 }, { 6, 2 }, { 10, 3 } }, { { 2, 2 }, { 6, 2 }, { 10, 2 }, { 14, 2 } } },
+        3.4, .7, .2, .4, .85, .3, .75, .4, .1,
+        { 2, 1, 2, 3, 1 },
+        { "SSDC", "SOSC", "SSQC" },
+        { .3, { 3, 4, 7, 12 }, .2, 2 },
+        { 2.0, 5.5, .35, .85, .2, .65, .7 }, 62,
+    };
+    return e;
+}
+
+const Engine& techHouse() {
+    static const Engine e {
+        "TECH HOUSE", "tight, percussive one-bar riff that loops and mutates a note at a time, rides the groove more than the harmony",
+        { S::naturalMinor, S::phrygian, S::dorian },
+        { { { 0, 0, 0, 0 }, { s7, s7, s7, s7 } }, { { 0, 0, 5, 5 }, { s7, s7, tr, tr } }, { { 0, 3, 0, 3 }, { s7, tr, s7, tr } } },
+        { { { 5, 5, 3, 3 }, { s7, s7, s7, s7 } }, { { 1, 1, 4, 4 }, { s7, s7, tr, tr } } },
+        { { 0, H, 0, H }, { 0, 0, 0, 0 } },
+        { { { 2, 1 }, { 3, 1 }, { 6, 2 }, { 10, 1 }, { 11, 1 }, { 14, 2 } },
+          { { 0, 1 }, { 3, 2 }, { 6, 1 }, { 8, 1 }, { 11, 2 }, { 14, 1 } },
+          { { 2, 2 }, { 6, 1 }, { 7, 1 }, { 10, 2 }, { 13, 1 }, { 14, 2 } },
+          { { 1, 1 }, { 2, 1 }, { 6, 2 }, { 9, 1 }, { 10, 1 }, { 14, 2 } } },
+        { { { 2, 1 }, { 6, 1 }, { 10, 1 }, { 14, 1 } }, { { 3, 1 }, { 6, 1 }, { 11, 1 }, { 14, 1 } } },
+        5.6, .85, .45, .3, .97, .2, .35, .1, 0,
+        { 1, 1, 1, 4, 1 },
+        { "SSSC", "SSDC", "SSSF" },
+        { .18, { 12, 7 }, 0, 2 },
+        { 3.5, 8.0, .5, .95, .2, .6, .9 }, 66,
+    };
+    return e;
+}
+
+const Engine& melodicTechno() {
+    static const Engine e {
+        "MELODIC TECHNO", "hypnotic sixteenth-note arpeggio that outlines dark minor chords, repeats, then opens up a step at a time",
+        { S::naturalMinor, S::harmonicMinor, S::phrygian },
+        { { { 0, 5, 2, 6 }, { tr, tr, tr, tr } }, { { 0, 5, 3, 6 }, { tr, tr, tr, tr } }, { { 0, 0, 5, 5 }, { su2, su2, tr, tr } } },
+        { { { 5, 3, 0, 4 }, { tr, tr, tr, tr } } },
+        { { 0, 0, 0, 0 }, { 0, H, 0, H } },
+        { { { 0, 1 }, { 2, 1 }, { 4, 1 }, { 6, 1 }, { 8, 1 }, { 10, 1 }, { 12, 1 }, { 14, 1 } },
+          { { 0, 2 }, { 3, 1 }, { 4, 2 }, { 7, 1 }, { 8, 2 }, { 11, 1 }, { 12, 2 }, { 15, 1 } },
+          { { 0, 1 }, { 1, 1 }, { 3, 1 }, { 6, 1 }, { 8, 1 }, { 9, 1 }, { 11, 1 }, { 14, 1 } },
+          { { 2, 1 }, { 4, 1 }, { 6, 1 }, { 10, 1 }, { 12, 1 }, { 14, 2 } } },
+        { { { 0, 16 } }, { { 0, 8 }, { 8, 8 } } },
+        7.0, .5, .8, .15, .95, .45, .3, .3, 0,
+        { 2, 3, 1, 4, 1 },
+        { "SSDC", "SSQC", "SQSC" },
+        { .15, { 12, 7 }, 0, 2 },
+        { 4.5, 9.5, .2, .7, .05, .35, .85 }, 58,
+    };
+    return e;
+}
+
+const Engine& trance() {
+    static const Engine e {
+        "TRANCE", "uplifting anthem lead: driving eighths and sixteenths that climb in sequences to a soaring peak",
+        { S::naturalMinor, S::naturalMinor, S::harmonicMinor },
+        { { { 0, 5, 2, 6 }, { tr, tr, tr, tr } }, { { 5, 6, 0, 0 }, { tr, tr, tr, su2 } }, { { 0, 3, 5, 6 }, { tr, tr, tr, tr } } },
+        { { { 5, 3, 0, 4 }, { tr, tr, tr, tr } }, { { 0, 4, 5, 3 }, { tr, tr, tr, tr } } },
+        { { 0, 0, 0, 0 } },
+        { { { 0, 2 }, { 2, 2 }, { 4, 2 }, { 6, 2 }, { 8, 2 }, { 10, 2 }, { 12, 4 } },
+          { { 0, 3 }, { 3, 3 }, { 6, 2 }, { 8, 3 }, { 11, 3 }, { 14, 2 } },
+          { { 0, 1 }, { 2, 1 }, { 3, 1 }, { 4, 2 }, { 6, 2 }, { 8, 1 }, { 10, 1 }, { 11, 1 }, { 12, 4 } },
+          { { 0, 4 }, { 4, 2 }, { 6, 2 }, { 8, 4 }, { 12, 2 }, { 14, 2 } } },
+        { { { 2, 2 }, { 6, 2 }, { 10, 2 }, { 14, 2 } }, { { 0, 3 }, { 3, 3 }, { 6, 4 }, { 10, 3 }, { 13, 3 } } },
+        6.0, .55, .4, .15, .8, .45, .55, .4, .1,
+        { 2, 4, 1, 2, 1 },
+        { "SQXC", "SSXC", "SQDC" },
+        { .25, { 12, 7 }, 0, 2 },
+        { 4.0, 8.5, .3, .75, .03, .3, .55 }, 62,
+    };
+    return e;
+}
+
+const Engine& futureBass() {
+    static const Engine e {
+        "FUTURE BASS", "bright, chopped vocal-like hook with syncopated jumps over lush major-seventh and ninth chords",
+        { S::major, S::naturalMinor, S::major },
+        { { { 5, 3, 0, 6 }, { s7, s7, n9, tr } }, { { 0, 5, 3, 6 }, { n9, s7, s7, tr } } },
+        { { { 3, 4, 2, 5 }, { s7, tr, s7, s7 } }, { { 0, 4, 5, 3 }, { s7, tr, s7, s7 } }, { { 3, 0, 4, 5 }, { s7, n9, tr, s7 } } },
+        { { 0, 0, 0, 0 }, { 0, -2, 0, -2 } },
+        { { { 0, 2 }, { 3, 2 }, { 6, 1 }, { 7, 2 }, { 10, 2 }, { 12, 2 }, { 14, 1 } },
+          { { 0, 3 }, { 3, 3 }, { 6, 2 }, { 10, 4 } },
+          { { 2, 1 }, { 3, 2 }, { 6, 2 }, { 9, 1 }, { 10, 3 }, { 14, 2 } },
+          { { 0, 1 }, { 1, 1 }, { 3, 3 }, { 8, 2 }, { 11, 3 } } },
+        { { { 0, 3 }, { 3, 3 }, { 6, 4 }, { 10, 2 }, { 12, 4 } }, { { 0, 6 }, { 6, 4 }, { 10, 6 } } },
+        5.0, .8, .45, .3, .8, .5, .4, .3, .05,
+        { 1, 3, 1, 3, 2 },
+        { "SOSC", "SQXC", "SSDC" },
+        { .25, { 3, 4, 8, 12 }, .1, 2 },
+        { 3.0, 7.5, .45, .9, .15, .55, .6 }, 64,
+    };
+    return e;
+}
+
+const Engine& ukGarage() {
+    static const Engine e {
+        "UK GARAGE", "skippy two-step phrases that dodge the kick, soulful minor sevenths, short notes with swing",
+        { S::naturalMinor, S::dorian, S::naturalMinor },
+        { { { 0, 3, 5, 4 }, { s7, s7, s7, s7 } }, { { 0, 5, 3, 4 }, { n9, s7, s7, tr } }, { { 0, 3, 0, 4 }, { s7, s7, s7, s7 } } },
+        { { { 1, 4, 0, 5 }, { s7, s7, s7, s7 } }, { { 5, 3, 0, 4 }, { s7, s7, s7, tr } } },
+        { { 0, 0, 0, 0 }, { 0, -1, 0, -1 } },
+        { { { 0, 1 }, { 3, 2 }, { 6, 1 }, { 10, 1 }, { 13, 2 } },
+          { { 2, 1 }, { 3, 1 }, { 6, 2 }, { 9, 1 }, { 11, 3 } },
+          { { 0, 2 }, { 3, 1 }, { 7, 2 }, { 10, 1 }, { 12, 1 }, { 14, 2 } },
+          { { 1, 2 }, { 6, 1 }, { 7, 1 }, { 10, 3 }, { 15, 1 } } },
+        { { { 0, 1 }, { 3, 1 }, { 6, 1 }, { 10, 1 }, { 13, 1 } }, { { 2, 1 }, { 6, 2 }, { 10, 1 }, { 13, 2 } } },
+        4.6, .9, .5, .4, .85, .3, .35, .25, .1,
+        { 1, 1, 2, 4, 1 },
+        { "SOSC", "SSDC", "SQSC" },
+        { .2, { 3, 4, 12 }, 0, 2 },
+        { 3.0, 7.0, .5, .95, .25, .65, .6 }, 62,
+    };
+    return e;
+}
 }
 
 const Engine& get(Style s) {
@@ -265,6 +391,12 @@ const Engine& get(Style s) {
         case Style::drill: return drill();
         case Style::mpb: return mpb();
         case Style::lofi: return lofi();
+        case Style::deepHouse: return deepHouse();
+        case Style::techHouse: return techHouse();
+        case Style::melodicTechno: return melodicTechno();
+        case Style::trance: return trance();
+        case Style::futureBass: return futureBass();
+        case Style::ukGarage: return ukGarage();
         default: return pop();
     }
 }

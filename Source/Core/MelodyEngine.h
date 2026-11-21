@@ -19,7 +19,9 @@ constexpr int autoKey = -1, autoScale = -1;   // "PADRÃO": the engine picks
 
 // "automatic" lets the engine pick the style; the choice is stored in the Pattern.
 // Each style has its own composition engine (Genres.h).
-enum class Style { automatic, funkBR, pop, trap, rnb, reggaeton, house, afrobeats, orchestral, drill, mpb, lofi, count };
+// New styles go at the end: the style is saved as its number.
+enum class Style { automatic, funkBR, pop, trap, rnb, reggaeton, house, afrobeats, orchestral, drill, mpb, lofi,
+                   deepHouse, techHouse, melodicTechno, trance, futureBass, ukGarage, count };
 // The vibe is the sound's aesthetic (effects); it never changes the notes.
 enum class Vibe { clean, dreamy, dark, tape, space, count };
 enum class Feel { straight, swing, triplet, count };

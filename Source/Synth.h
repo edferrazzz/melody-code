@@ -3,7 +3,7 @@
 #include <array>
 #include <vector>
 #include "Tone.h"
-#include "Sampler.h"
+#include "Sets.h"
 
 // Preview synth. One polyphonic instrument plays both the melody and the low "bass" notes, so the
 // bass is the same timbre an octave or two down. Each preset (Tone.h) picks a family voice and its
@@ -34,17 +34,13 @@ public:
     void setPreset(int p) { preset = juce::jlimit(0, presetCount - 1, p); }
     // Optional macro override for the current preset (tone::vary); nullptr returns to the preset's own macros.
     void setMacros(const tone::Macros* m) { if (m) { macroOverride = *m; useOverride = true; } else useOverride = false; }
-    void setLevels(float bass, float melody) { bassLevel = bass; melodyLevel = melody; sampler.setLevels(bass, melody); }
-    // A sample kit (Sampler.h) replaces the synth voices; -1 goes back to the synth presets.
-    // A synthesized kit (Kit::synth) plays a Tone preset on the synth voices instead.
-    void setKit(int k) {
-        if (k >= 0 && Sampler::kit(k).synth >= 0) { kit = -1; setPreset(Sampler::kit(k).synth); return; }
-        kit = k; if (k >= 0) sampler.setKit(k);
-    }
-    void setCenters(int melody, int bass, int chords) { sampler.setCenters(melody, bass, chords); }
+    void setLevels(float bass, float melody, float chords = 0.8f) { bassLevel = bass; melodyLevel = melody; sets.setLevels(bass, melody, chords); }
+    // A sound set (Sets.h) replaces the preset voices; -1 goes back to the Tone presets.
+    void setKit(int k) { kit = k; if (k >= 0) sets.setKit(k); }
+    void setCenters(int melody, int bass, int chords) { sets.setCenters(melody, bass, chords); }
     void setTempo(double bpm) { beatSeconds = 60.0 / juce::jmax(30.0, bpm); }
     void setFx(const Fx& f) { fxTarget = f; }
-    // layer: 0 melody, 1 bass, 2 chords (only the sample kits tell the layers apart)
+    // layer: 0 melody, 1 bass, 2 chords (only the sound sets tell the layers apart)
     void noteOn(int pitch, int velocity, int lengthSamples, bool isBass, int layer = -1);
     void allNotesOff();             // short fade, no click
     void render(float* left, float* right, int numSamples);
@@ -76,7 +72,7 @@ private:
     double sr { 44100.0 }, beatSeconds { 0.5 };
     int preset { keys };
     int kit { -1 };
-    Sampler sampler;
+    Sets sets;
     Fx fx, fxTarget;
     std::array<Voice, 32> voices {};
     float bassLevel { 0.8f }, melodyLevel { 0.8f };
